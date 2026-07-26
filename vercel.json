@@ -1,10 +1,5 @@
 {
   "rewrites": [
-    { "source": "/((?!images/|css/|js/|favicon.ico).*)", "destination": "/api/index.js" }
-  ],
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "Academia/public/**"
-    }
-  }
+    { "source": "/(.*)", "destination": "/api/index.js" }
+  ]
 }
