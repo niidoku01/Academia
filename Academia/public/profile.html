@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - My Portrait</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>My Portrait</h1>
+      </div>
+      <div class="content-area">
+        <div class="profile-grid">
+          <!-- Preview Card -->
+          <div>
+            <div class="glass-card" style="overflow:hidden">
+              <div id="portrait-preview-header" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));padding:32px;text-align:center;color:white">
+                <div id="preview-photo" style="width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;border:3px solid rgba(255,255,255,0.3);margin-bottom:12px"></div>
+                <h3 id="preview-name" style="font-size:1.15rem;margin-bottom:4px"></h3>
+                <p id="preview-dept" style="font-size:0.85rem;opacity:0.85"></p>
+              </div>
+              <div style="padding:20px 24px" id="preview-details">
+                <div class="empty-state" style="padding:20px"><p>Fill out the form to see your portrait preview.</p></div>
+              </div>
+            </div>
+            <p style="margin-top:12px;font-size:0.82rem;color:var(--text-secondary);text-align:center">
+              This portrait will be visible to students and administrators.
+            </p>
+          </div>
+
+          <!-- Edit Form -->
+          <div>
+            <div class="glass-card" style="padding:28px">
+              <div id="profile-message" class="success-msg" style="display:none;margin-bottom:16px"></div>
+              <div id="profile-error" class="error-msg" style="display:none;margin-bottom:16px"></div>
+              <form onsubmit="saveProfile(event)" enctype="multipart/form-data">
+                <div class="form-group">
+                  <label>Profile Photo</label>
+                  <input type="file" id="prof-photo" accept="image/*" onchange="previewPhoto(event)">
+                  <small style="color:var(--text-secondary)">JPEG, PNG or GIF. Max 5MB.</small>
+                </div>
+                <div class="form-group">
+                  <label>Bio</label>
+                  <textarea id="prof-bio" rows="3" placeholder="Tell students about yourself..."></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Course</label>
+                    <input type="text" id="prof-spec" placeholder="e.g. Artificial Intelligence">
+                  </div>
+                  <div class="form-group">
+                    <label>Faculty</label>
+                    <input type="text" id="prof-qual" placeholder="e.g. Ph.D Computer Science">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="prof-phone" placeholder="+233 XX XXX XXXX">
+                  </div>
+                  <div class="form-group">
+                    <label>Office Location</label>
+                    <input type="text" id="prof-office" placeholder="e.g. Block A, Room 204">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Office Hours</label>
+                  <input type="text" id="prof-hours" placeholder="e.g. Mon-Fri, 10:00 AM - 2:00 PM">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="prof-submit-btn">Save Portrait</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    if (checkAuth() && checkRole('lecturer', 'admin')) {
+      renderSidebar('profile');
+      loadProfile();
+    }
+
+    async function loadProfile() {
+      const user = getUser();
+      const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+      document.getElementById('preview-photo').textContent = initials;
+      document.getElementById('preview-name').textContent = user.full_name;
+      document.getElementById('preview-dept').textContent = (user.department || '') + (user.school ? ' &middot; ' + getSchoolShort(user.school) : '');
+
+      const profile = await apiGet('/api/profiles/my-profile');
+      if (profile && profile.id) {
+        document.getElementById('prof-bio').value = profile.bio || '';
+        document.getElementById('prof-spec').value = profile.specialization || '';
+        document.getElementById('prof-qual').value = profile.qualification || '';
+        document.getElementById('prof-phone').value = profile.phone || '';
+        document.getElementById('prof-office').value = profile.office_location || '';
+        document.getElementById('prof-hours').value = profile.office_hours || '';
+        if (profile.photo_path) {
+          document.getElementById('preview-photo').innerHTML = `<img src="${profile.photo_path}" alt="Photo" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+        }
+        updatePreview();
+      }
+    }
+
+    function previewPhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('preview-photo').innerHTML = `<img src="${ev.target.result}" alt="Photo" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updatePreview() {
+      const spec = document.getElementById('prof-spec').value;
+      const qual = document.getElementById('prof-qual').value;
+      const bio = document.getElementById('prof-bio').value;
+      const phone = document.getElementById('prof-phone').value;
+      const office = document.getElementById('prof-office').value;
+      const hours = document.getElementById('prof-hours').value;
+      const user = getUser();
+
+      let html = '';
+      if (spec) html += `<div style="margin-bottom:8px"><strong style="font-size:0.78rem;color:var(--text-secondary)">Specialization</strong><p style="margin:2px 0 0;font-size:0.9rem">${spec}</p></div>`;
+      if (qual) html += `<div style="margin-bottom:8px"><strong style="font-size:0.78rem;color:var(--text-secondary)">Qualification</strong><p style="margin:2px 0 0;font-size:0.9rem">${qual}</p></div>`;
+      if (bio) html += `<div style="margin-bottom:8px"><strong style="font-size:0.78rem;color:var(--text-secondary)">Bio</strong><p style="margin:2px 0 0;font-size:0.85rem;color:var(--text-secondary)">${bio.substring(0, 150)}${bio.length > 150 ? '...' : ''}</p></div>`;
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;font-size:0.85rem">';
+      if (user.email) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="mail" style="width:14px;height:14px;color:var(--text-secondary)"></i>${user.email}</div>`;
+      if (phone) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="phone" style="width:14px;height:14px;color:var(--text-secondary)"></i>${phone}</div>`;
+      if (office) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="map-pin" style="width:14px;height:14px;color:var(--text-secondary)"></i>${office}</div>`;
+      if (hours) html += `<div style="display:flex;align-items:center;gap:8px"><i data-lucide="clock" style="width:14px;height:14px;color:var(--text-secondary)"></i>${hours}</div>`;
+      html += '</div>';
+      if (!html) html = '<div class="empty-state" style="padding:20px"><p>Fill out the form to see your portrait preview.</p></div>';
+      document.getElementById('preview-details').innerHTML = html;
+      lucide.createIcons();
+    }
+
+    document.getElementById('prof-bio').addEventListener('input', updatePreview);
+    document.getElementById('prof-spec').addEventListener('input', updatePreview);
+    document.getElementById('prof-qual').addEventListener('input', updatePreview);
+    document.getElementById('prof-phone').addEventListener('input', updatePreview);
+    document.getElementById('prof-office').addEventListener('input', updatePreview);
+    document.getElementById('prof-hours').addEventListener('input', updatePreview);
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const msgBox = document.getElementById('profile-message');
+      const errBox = document.getElementById('profile-error');
+      const btn = document.getElementById('prof-submit-btn');
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const formData = new FormData();
+      formData.append('bio', document.getElementById('prof-bio').value);
+      formData.append('specialization', document.getElementById('prof-spec').value);
+      formData.append('qualification', document.getElementById('prof-qual').value);
+      formData.append('phone', document.getElementById('prof-phone').value);
+      formData.append('office_location', document.getElementById('prof-office').value);
+      formData.append('office_hours', document.getElementById('prof-hours').value);
+
+      const photoFile = document.getElementById('prof-photo').files[0];
+      if (photoFile) formData.append('photo', photoFile);
+
+      const res = await apiPostForm('/api/profiles/my-profile', formData);
+      if (res.error) {
+        errBox.textContent = res.error;
+        errBox.style.display = 'block';
+        msgBox.style.display = 'none';
+      } else {
+        msgBox.textContent = res.message || 'Profile saved!';
+        msgBox.style.display = 'block';
+        errBox.style.display = 'none';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Portrait';
+      updatePreview();
+    }
+  </script>
+</body>
+</html>

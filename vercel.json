@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.js"
+    },
+    {
+      "src": "/images/(.*)",
+      "dest": "Academia/public/images/$1"
+    },
+    {
+      "src": "/css/(.*)",
+      "dest": "Academia/public/css/$1"
+    },
+    {
+      "src": "/js/(.*)",
+      "dest": "Academia/public/js/$1"
+    },
+    {
+      "src": "/(.+\\.(html|ico|png|jpg|jpeg|gif|svg))",
+      "dest": "Academia/public/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/index.js"
+    }
+  ]
+}

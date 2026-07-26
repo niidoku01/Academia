@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - Admin Portrait</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>Admin Portrait</h1>
+      </div>
+      <div class="content-area">
+        <div class="profile-grid">
+          <!-- Preview Card -->
+          <div>
+            <div class="glass-card" style="overflow:hidden">
+              <div id="portrait-preview-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e);padding:32px;text-align:center;color:white">
+                <div id="preview-photo" style="width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;border:3px solid rgba(255,255,255,0.3);margin-bottom:12px"></div>
+                <h3 id="preview-name" style="font-size:1.15rem;margin-bottom:4px"></h3>
+                <p id="preview-position" style="font-size:0.85rem;opacity:0.85;margin-bottom:4px"></p>
+                <div id="preview-school-badge"></div>
+              </div>
+              <div style="padding:20px 24px" id="preview-details">
+                <div class="empty-state" style="padding:20px"><p>Fill out the form to see your portrait preview.</p></div>
+              </div>
+            </div>
+            <p style="margin-top:12px;font-size:0.82rem;color:var(--text-secondary);text-align:center">
+              This portrait identifies you as an administrator of the institution.
+            </p>
+          </div>
+
+          <!-- Edit Form -->
+          <div>
+            <div class="glass-card" style="padding:28px">
+              <div id="profile-message" class="success-msg" style="display:none;margin-bottom:16px"></div>
+              <div id="profile-error" class="error-msg" style="display:none;margin-bottom:16px"></div>
+              <form onsubmit="saveAdminProfile(event)" enctype="multipart/form-data">
+                <div class="form-group">
+                  <label>Profile Photo</label>
+                  <input type="file" id="adm-photo" accept="image/*" onchange="previewPhoto(event)">
+                  <small style="color:var(--text-secondary)">JPEG, PNG or GIF. Max 5MB.</small>
+                </div>
+                <div class="form-group">
+                  <label>Position / Title</label>
+                  <input type="text" id="adm-position" placeholder="e.g. System Administrator, Dean of Students">
+                </div>
+                <div class="form-group">
+                  <label>School</label>
+                  <select id="adm-school" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--bg);color:var(--text);transition:var(--transition)">
+                    <option value="University for Development Studies">University for Development Studies</option>
+                    <option value="University of Education, Winneba">University of Education, Winneba</option>
+                    <option value="Ghana Institute of Management and Public Administration">Ghana Institute of Management and Public Administration</option>
+                    <option value="University of Mines and Technology">University of Mines and Technology</option>
+                    <option value="University of Health and Allied Sciences">University of Health and Allied Sciences</option>
+                    <option value="University of Energy and Natural Resources">University of Energy and Natural Resources</option>
+                    <option value="University of Ghana">University of Ghana</option>
+                    <option value="Ghana Communication Technology University">Ghana Communication Technology University</option>
+                    <option value="Kwame Nkrumah University of Science and Technology">Kwame Nkrumah University of Science and Technology</option>
+                    <option value="University of Cape Coast">University of Cape Coast</option>
+                    <option value="University of Professional Studies, Accra">University of Professional Studies, Accra</option>
+                    <option value="Central University">Central University</option>
+                    <option value="All">All Schools (System-wide)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Bio</label>
+                  <textarea id="adm-bio" rows="3" placeholder="Brief description of your role and responsibilities..."></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <input type="tel" id="adm-phone" placeholder="+233 XX XXX XXXX">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="adm-submit-btn">Save Portrait</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    if (checkAuth() && checkRole('admin', 'school_admin')) {
+      renderSidebar('admin-profile');
+      loadAdminProfile();
+    }
+
+    async function loadAdminProfile() {
+      const user = getUser();
+      const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+      document.getElementById('preview-photo').textContent = initials;
+      document.getElementById('preview-name').textContent = user.full_name;
+      document.getElementById('preview-school-badge').innerHTML = user.school ? schoolBadge(user.school) : '';
+
+      if (user.school) {
+        document.getElementById('adm-school').value = user.school;
+      }
+
+      const profile = await apiGet('/api/profiles/admin-profile');
+      if (profile && profile.id) {
+        document.getElementById('adm-position').value = profile.position || '';
+        document.getElementById('adm-bio').value = profile.bio || '';
+        document.getElementById('adm-phone').value = profile.phone || '';
+        if (profile.position) {
+          document.getElementById('preview-position').textContent = profile.position;
+        }
+        if (profile.school) {
+          document.getElementById('adm-school').value = profile.school;
+        }
+        if (profile.photo_path) {
+          document.getElementById('preview-photo').innerHTML = `<img src="${profile.photo_path}" alt="Photo" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+        }
+        updatePreview();
+      }
+    }
+
+    function previewPhoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById('preview-photo').innerHTML = `<img src="${ev.target.result}" alt="Photo" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updatePreview() {
+      const position = document.getElementById('adm-position').value;
+      const bio = document.getElementById('adm-bio').value;
+      const phone = document.getElementById('adm-phone').value;
+      const school = document.getElementById('adm-school').value;
+      const user = getUser();
+
+      if (position) {
+        document.getElementById('preview-position').textContent = position;
+      } else {
+        document.getElementById('preview-position').textContent = 'Administrator';
+      }
+      document.getElementById('preview-school-badge').innerHTML = school ? schoolBadge(school) : '';
+
+      let html = '';
+      if (position) html += `<div style="margin-bottom:8px"><strong style="font-size:0.78rem;color:var(--text-secondary)">Position</strong><p style="margin:2px 0 0;font-size:0.9rem">${position}</p></div>`;
+      if (bio) html += `<div style="margin-bottom:8px"><strong style="font-size:0.78rem;color:var(--text-secondary)">Bio</strong><p style="margin:2px 0 0;font-size:0.85rem;color:var(--text-secondary)">${bio.substring(0, 150)}${bio.length > 150 ? '...' : ''}</p></div>`;
+      html += '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;font-size:0.85rem">';
+      if (user.email) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="mail" style="width:14px;height:14px;color:var(--text-secondary)"></i>${user.email}</div>`;
+      if (phone) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="phone" style="width:14px;height:14px;color:var(--text-secondary)"></i>${phone}</div>`;
+      if (school) html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><i data-lucide="building-2" style="width:14px;height:14px;color:var(--text-secondary)"></i>${school}</div>`;
+      html += '</div>';
+      if (!html) html = '<div class="empty-state" style="padding:20px"><p>Fill out the form to see your portrait preview.</p></div>';
+      document.getElementById('preview-details').innerHTML = html;
+      lucide.createIcons();
+    }
+
+    document.getElementById('adm-position').addEventListener('input', updatePreview);
+    document.getElementById('adm-bio').addEventListener('input', updatePreview);
+    document.getElementById('adm-phone').addEventListener('input', updatePreview);
+    document.getElementById('adm-school').addEventListener('change', updatePreview);
+
+    async function saveAdminProfile(e) {
+      e.preventDefault();
+      const msgBox = document.getElementById('profile-message');
+      const errBox = document.getElementById('profile-error');
+      const btn = document.getElementById('adm-submit-btn');
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const formData = new FormData();
+      formData.append('position', document.getElementById('adm-position').value);
+      formData.append('bio', document.getElementById('adm-bio').value);
+      formData.append('phone', document.getElementById('adm-phone').value);
+
+      const photoFile = document.getElementById('adm-photo').files[0];
+      if (photoFile) formData.append('photo', photoFile);
+
+      const res = await apiPostForm('/api/profiles/admin-profile', formData);
+      if (res.error) {
+        errBox.textContent = res.error;
+        errBox.style.display = 'block';
+        msgBox.style.display = 'none';
+      } else {
+        msgBox.textContent = res.message || 'Portrait saved!';
+        msgBox.style.display = 'block';
+        errBox.style.display = 'none';
+
+        const newSchool = document.getElementById('adm-school').value;
+        const storedUser = getUser();
+        if (storedUser && newSchool) {
+          storedUser.school = newSchool;
+          localStorage.setItem('user', JSON.stringify(storedUser));
+          renderSidebar('admin-profile');
+        }
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Portrait';
+      updatePreview();
+    }
+  </script>
+</body>
+</html>

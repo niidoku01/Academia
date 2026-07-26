@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - Calendar</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/calendar.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>Calendar</h1>
+        <div class="top-bar-actions">
+          <button class="btn btn-primary btn-sm" id="add-event-btn" style="display:none" onclick="showModal('event-modal')">+ Add Event</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="card">
+          <div class="card-header">
+            <div class="calendar-nav">
+              <button class="btn btn-outline btn-sm" onclick="changeMonth(-1)">&#9664;</button>
+              <h3 id="cal-month-year"></h3>
+              <button class="btn btn-outline btn-sm" onclick="changeMonth(1)">&#9654;</button>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="goToday()">Today</button>
+          </div>
+          <div class="card-body">
+            <div class="calendar-grid" id="calendar-grid"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="card-header"><h2>Upcoming Events</h2></div>
+          <div class="card-body" id="events-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Event Modal -->
+  <div class="modal-overlay" id="event-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add Calendar Event</h2>
+        <button class="modal-close" onclick="hideModal('event-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="event-submit-hint" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;display:none">Your event will be reviewed by an administrator before being published.</p>
+        <form onsubmit="createEvent(event)">
+          <div class="form-group"><label>Title</label><input type="text" id="ev-title" required></div>
+          <div class="form-group"><label>Description</label><textarea id="ev-desc" rows="2"></textarea></div>
+          <div class="form-row">
+            <div class="form-group"><label>Start Date</label><input type="datetime-local" id="ev-start" required></div>
+            <div class="form-group"><label>End Date</label><input type="datetime-local" id="ev-end"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Type</label>
+              <select id="ev-type">
+                <option value="lecture">Lecture</option>
+                <option value="exam">Exam</option>
+                <option value="assignment">Assignment</option>
+                <option value="deadline">Deadline</option>
+                <option value="event">Event</option>
+                <option value="holiday">Holiday</option>
+              </select>
+            </div>
+            <div class="form-group"><label>School</label><input type="text" id="ev-school" placeholder="Leave blank for all"></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="event-submit-btn">Add Event</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/calendar.js"></script>
+</body>
+</html>

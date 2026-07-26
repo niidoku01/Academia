@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - News & Announcements</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/news.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>News & Announcements</h1>
+        <div class="top-bar-actions">
+          <button class="btn btn-primary btn-sm" id="post-news-btn" style="display:none" onclick="showModal('news-modal')">+ News</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="filter-bar">
+          <select id="news-category" onchange="loadNews()">
+            <option value="">All Categories</option>
+            <option value="announcement">Announcements</option>
+            <option value="event">Events</option>
+            <option value="update">Updates</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <input type="text" id="news-search" placeholder="Search news..." oninput="loadNews()" style="flex:1;min-width:200px">
+        </div>
+        <div class="news-grid" id="news-grid"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Post News Modal -->
+  <div class="modal-overlay" id="news-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Post News / Announcement</h2>
+        <button class="modal-close" onclick="hideModal('news-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="news-submit-hint" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;display:none">Your submission will be reviewed by an administrator before being published.</p>
+        <form onsubmit="postNews(event)">
+          <div class="form-group"><label>Title</label><input type="text" id="news-title" required></div>
+          <div class="form-group"><label>Content</label><textarea id="news-content" rows="5" required></textarea></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="news-cat">
+                <option value="announcement">Announcement</option>
+                <option value="event">Event</option>
+                <option value="update">Update</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>School</label>
+              <select id="news-school">
+                <option value="">All Universities</option>
+                <option>University for Development Studies</option>
+                <option>University of Education, Winneba</option>
+                <option>Ghana Institute of Management and Public Administration</option>
+                <option>University of Mines and Technology</option>
+                <option>University of Health and Allied Sciences</option>
+                <option>University of Energy and Natural Resources</option>
+                <option>Ghana Communication Technology University</option>
+                <option>University of Ghana</option>
+                <option>Kwame Nkrumah University of Science and Technology</option>
+                <option>University of Cape Coast</option>
+                <option>University of Professional Studies, Accra</option>
+                <option>Central University</option>
+                <option>other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="news-pinned"> Pin this article</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="news-submit-btn">Publish</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Article Modal -->
+  <div class="modal-overlay" id="view-news-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="article-title"></h2>
+        <button class="modal-close" onclick="hideModal('view-news-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="article-meta" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px"></div>
+        <div id="article-body" style="line-height:1.8"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/news.js"></script>
+</body>
+</html>

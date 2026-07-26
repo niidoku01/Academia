@@ -1,0 +1,14 @@
+# Academia — root-level gitignore
+node_modules/
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+logs/
+uploads/
+*.log
+*.vsix
+.vercel
+.vscode/

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - Courses</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/courses.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>Courses</h1>
+        <div class="top-bar-actions">
+          <button class="btn btn-primary btn-sm" id="add-course-btn" style="display:none" onclick="showModal('course-modal')">+ Add Course</button>
+          <button class="btn btn-accent btn-sm" id="upload-material-btn" style="display:none" onclick="showModal('material-modal')">+ Upload Material</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="courses-view-toggle" id="courses-view-toggle">
+          <button class="view-tab active" id="tab-courses" onclick="switchView('courses')"><i data-lucide="book-open"></i> Courses</button>
+          <button class="view-tab" id="tab-materials" onclick="switchView('materials')"><i data-lucide="file-text"></i> My Materials</button>
+        </div>
+
+        <div id="courses-view">
+          <div class="level-tabs" id="level-tabs">
+            <div class="level-tab active" onclick="filterLevel('', this)">All Levels</div>
+            <div class="level-tab" onclick="filterLevel('L100', this)">L100</div>
+            <div class="level-tab" onclick="filterLevel('L200', this)">L200</div>
+            <div class="level-tab" onclick="filterLevel('L300', this)">L300</div>
+            <div class="level-tab" onclick="filterLevel('L400', this)">L400</div>
+          </div>
+
+          <div class="filter-bar">
+            <select id="semester-filter" onchange="loadCourses()">
+              <option value="">All Semesters</option>
+              <option value="first">First Semester</option>
+              <option value="second">Second Semester</option>
+            </select>
+            <input type="text" id="search-courses" placeholder="Search courses..." oninput="loadCourses()" style="flex:1;min-width:200px">
+          </div>
+
+          <div class="course-grid" id="course-list"></div>
+        </div>
+
+        <div id="materials-view" style="display:none">
+          <div class="filter-bar">
+            <select id="material-category-filter" onchange="loadMyMaterials()">
+              <option value="">All Categories</option>
+              <option value="lecture_note">Lecture Notes</option>
+              <option value="textbook">Textbooks</option>
+              <option value="slide">Slides</option>
+              <option value="past_question">Past Questions</option>
+              <option value="video">Videos</option>
+              <option value="other">Other</option>
+            </select>
+            <input type="text" id="search-materials" placeholder="Search materials..." oninput="loadMyMaterials()" style="flex:1;min-width:200px">
+          </div>
+
+          <div class="materials-grid" id="my-materials-list"></div>
+        </div>
+
+        <!-- Materials Panel -->
+        <div class="card" id="materials-panel" style="display:none;margin-top:24px">
+          <div class="card-header">
+            <h2 id="materials-title">Course Materials</h2>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('materials-panel').style.display='none'">Close</button>
+          </div>
+          <div class="card-body">
+            <ul class="material-list" id="materials-list"></ul>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Course Modal (Lecturers create drafts) -->
+  <div class="modal-overlay" id="course-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Create Course</h2>
+        <button class="modal-close" onclick="hideModal('course-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">Your course will be submitted as a draft for admin approval.</p>
+        <form onsubmit="createCourse(event)">
+          <div class="form-row">
+            <div class="form-group"><label>Course Code</label><input type="text" id="cr-code" placeholder="e.g. CSC101" required></div>
+            <div class="form-group"><label>Level</label><select id="cr-level"><option value="L100">L100</option><option value="L200">L200</option><option value="L300">L300</option><option value="L400">L400</option></select></div>
+          </div>
+          <div class="form-group"><label>Course Title</label><input type="text" id="cr-title" placeholder="Introduction to Computer Science" required></div>
+          <div class="form-group"><label>Description</label><textarea id="cr-desc" rows="2" placeholder="Brief description..."></textarea></div>
+          <div class="form-row">
+            <div class="form-group"><label>School</label><select id="cr-school" required>
+              <option>University for Development Studies</option>
+              <option>University of Education, Winneba</option>
+              <option>Ghana Institute of Management and Public Administration</option>
+              <option>University of Mines and Technology</option>
+              <option>University of Health and Allied Sciences</option>
+              <option>University of Energy and Natural Resources</option>
+              <option>Ghana Communication Technology University</option>
+              <option>University of Ghana</option>
+              <option>Central University</option>
+              <option>University of Cape Coast</option>
+              <option>Kwame Nkrumah University of Science and Technology</option>
+              <option>University of Professional Studies, Accra</option>
+              <option>Other</option>
+            </select></div>
+            <div class="form-group"><label>Semester</label><select id="cr-semester"><option value="first">First</option><option value="second">Second</option></select></div>
+          </div>
+          <div class="form-group"><label>Department</label><input type="text" id="cr-dept" placeholder="e.g. Computer Science"></div>
+          <button type="submit" class="btn btn-primary btn-block">Submit Course</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Material Modal -->
+  <div class="modal-overlay" id="material-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Upload Material</h2>
+        <button class="modal-close" onclick="hideModal('material-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form onsubmit="uploadMaterial(event)">
+          <div class="form-group">
+            <label>Course</label>
+            <select id="mat-course" required></select>
+          </div>
+          <div class="form-group"><label>Title</label><input type="text" id="mat-title" required></div>
+          <div class="form-group"><label>Description</label><textarea id="mat-desc" rows="2"></textarea></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="mat-category">
+                <option value="lecture_note">Lecture Note</option>
+                <option value="textbook">Textbook</option>
+                <option value="slide">Slides</option>
+                <option value="past_question">Past Question</option>
+                <option value="video">Video</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Academic Year</label><input type="text" id="mat-year" placeholder="2025/2026"></div>
+          </div>
+          <div class="form-group"><label>File</label><input type="file" id="mat-file"></div>
+          <button type="submit" class="btn btn-primary btn-block">Upload</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/courses.js"></script>
+</body>
+</html>
