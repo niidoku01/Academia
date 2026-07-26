@@ -13,29 +13,29 @@ router.get('/', async (req, res) => {
     const stats = {};
 
     if (role === 'student') {
-      const studentLevel = await db.prepare('SELECT level, department, matric_number FROM users WHERE id = ?').get(userId);
+      const studentLevel = await db.prepare('SELECT level, department, matric_number FROM users WHERE id = $1').get(userId);
       stats.level = studentLevel ? studentLevel.level : null;
       stats.department = studentLevel ? studentLevel.department : null;
       stats.matric_number = studentLevel ? studentLevel.matric_number : null;
 
-      const enrollments = await db.prepare('SELECT COUNT(*) as count FROM enrollments WHERE student_id = ?').get(userId);
+      const enrollments = await db.prepare('SELECT COUNT(*) as count FROM enrollments WHERE student_id = $1').get(userId);
       stats.enrolled_courses = enrollments.count;
 
       const pendingAssignments = await db.prepare(`
         SELECT COUNT(*) as count FROM assignments a
         JOIN enrollments e ON e.course_id = a.course_id
-        WHERE e.student_id = ? AND a.due_date > datetime('now')
-        AND NOT EXISTS (SELECT 1 FROM submissions WHERE assignment_id = a.id AND student_id = ?)
-      `).get(userId, userId);
+        WHERE e.student_id = $1 AND a.due_date > NOW()
+        AND NOT EXISTS (SELECT 1 FROM submissions WHERE assignment_id = a.id AND student_id = $1)
+      `).get(userId);
       stats.pending_assignments = pendingAssignments.count;
 
       const completedSubmissions = await db.prepare(`
-        SELECT COUNT(*) as count FROM submissions WHERE student_id = ?
+        SELECT COUNT(*) as count FROM submissions WHERE student_id = $1
       `).get(userId);
       stats.completed_submissions = completedSubmissions.count;
 
       const gradedSubmissions = await db.prepare(`
-        SELECT COUNT(*) as count FROM submissions WHERE student_id = ? AND grade IS NOT NULL
+        SELECT COUNT(*) as count FROM submissions WHERE student_id = $1 AND grade IS NOT NULL
       `).get(userId);
       stats.graded_count = gradedSubmissions.count;
 
@@ -43,14 +43,14 @@ router.get('/', async (req, res) => {
         SELECT AVG(CAST(s.grade AS FLOAT) / CAST(a.total_marks AS FLOAT) * 100) as avg
         FROM submissions s
         JOIN assignments a ON a.id = s.assignment_id
-        WHERE s.student_id = ? AND s.grade IS NOT NULL
+        WHERE s.student_id = $1 AND s.grade IS NOT NULL
       `).get(userId);
       stats.average_grade = avgGrade.avg ? Math.round(avgGrade.avg) : null;
 
       const upcomingExams = await db.prepare(`
         SELECT COUNT(*) as count FROM midsem_exams m
         JOIN enrollments e ON e.course_id = m.course_id
-        WHERE e.student_id = ? AND m.exam_date > datetime('now')
+        WHERE e.student_id = $1 AND m.exam_date > NOW()
       `).get(userId);
       stats.upcoming_exams = upcomingExams.count;
 
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
         SELECT COUNT(*) as count FROM materials m
         JOIN courses c ON c.id = m.course_id
         JOIN enrollments e ON e.course_id = c.id
-        WHERE e.student_id = ?
+        WHERE e.student_id = $1
       `).get(userId);
       stats.course_materials = totalMaterials.count;
 
@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
         const levelMaterials = await db.prepare(`
           SELECT COUNT(*) as count FROM materials m
           JOIN courses c ON c.id = m.course_id
-          WHERE c.level = ? AND c.school = ?
+          WHERE c.level = $1 AND c.school = $2
         `).get(stats.level, school);
         stats.level_materials = levelMaterials.count;
       }
@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
         FROM courses c
         JOIN enrollments e ON e.course_id = c.id
         LEFT JOIN users u ON u.id = c.lecturer_id
-        WHERE e.student_id = ?
+        WHERE e.student_id = $1
         ORDER BY c.level, c.code
       `).all(userId);
       stats.my_courses = studentCourses;
@@ -86,7 +86,7 @@ router.get('/', async (req, res) => {
         FROM submissions s
         JOIN assignments a ON a.id = s.assignment_id
         JOIN courses c ON c.id = a.course_id
-        WHERE s.student_id = ?
+        WHERE s.student_id = $1
         ORDER BY s.submitted_at DESC LIMIT 5
       `).all(userId);
 
@@ -95,8 +95,8 @@ router.get('/', async (req, res) => {
         FROM assignments a
         JOIN courses c ON c.id = a.course_id
         JOIN enrollments e ON e.course_id = a.course_id
-        WHERE e.student_id = ? AND a.due_date > datetime('now')
-        AND NOT EXISTS (SELECT 1 FROM submissions WHERE assignment_id = a.id AND student_id = ?)
+        WHERE e.student_id = $1 AND a.due_date > NOW()
+        AND NOT EXISTS (SELECT 1 FROM submissions WHERE assignment_id = a.id AND student_id = $1)
         ORDER BY a.due_date ASC LIMIT 5
       `).all(userId, userId);
 
@@ -106,34 +106,33 @@ router.get('/', async (req, res) => {
         JOIN courses c ON c.id = m.course_id
         JOIN enrollments e ON e.course_id = c.id
         LEFT JOIN users u ON u.id = m.uploaded_by
-        WHERE e.student_id = ?
+        WHERE e.student_id = $1
         ORDER BY m.created_at DESC LIMIT 5
       `).all(userId);
 
     } else if (role === 'lecturer') {
-      const courses = await db.prepare('SELECT COUNT(*) as count FROM courses WHERE lecturer_id = ?').get(userId);
+      const courses = await db.prepare('SELECT COUNT(*) as count FROM courses WHERE lecturer_id = $1').get(userId);
       stats.assigned_courses = courses.count;
 
       const totalStudents = await db.prepare(`
         SELECT COUNT(DISTINCT e.student_id) as count FROM enrollments e
-        JOIN courses c ON c.id = e.course_id WHERE c.lecturer_id = ?
+        JOIN courses c ON c.id = e.course_id WHERE c.lecturer_id = $1
       `).get(userId);
       stats.total_students = totalStudents.count;
 
       const pendingSubmissions = await db.prepare(`
         SELECT COUNT(*) as count FROM submissions s
         JOIN assignments a ON a.id = s.assignment_id
-        WHERE a.created_by = ? AND s.grade IS NULL
+        WHERE a.created_by = $1 AND s.grade IS NULL
       `).get(userId);
       stats.pending_grading = pendingSubmissions.count;
     } else if (role === 'school_admin') {
-      const userSchool = school;
-      const totalStudents = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND school = ?").get(userSchool);
-      const totalLecturers = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'lecturer' AND school = ?").get(userSchool);
-      const totalCourses = db.prepare("SELECT COUNT(*) as count FROM courses WHERE school = ?").get(userSchool);
-      const totalMaterials = db.prepare("SELECT COUNT(*) as count FROM materials m JOIN courses c ON c.id = m.course_id WHERE c.school = ?").get(userSchool);
-      const pendingNews = db.prepare("SELECT COUNT(*) as count FROM news WHERE school = ? AND status = 'pending'").get(userSchool);
-      const pendingEvents = db.prepare("SELECT COUNT(*) as count FROM calendar_events WHERE school = ? AND status = 'pending'").get(userSchool);
+      const totalStudents = await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND school = $1").get(school);
+      const totalLecturers = await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'lecturer' AND school = $1").get(school);
+      const totalCourses = await db.prepare("SELECT COUNT(*) as count FROM courses WHERE school = $1").get(school);
+      const totalMaterials = await db.prepare("SELECT COUNT(*) as count FROM materials m JOIN courses c ON c.id = m.course_id WHERE c.school = $1").get(school);
+      const pendingNews = await db.prepare("SELECT COUNT(*) as count FROM news WHERE school = $1 AND status = 'pending'").get(school);
+      const pendingEvents = await db.prepare("SELECT COUNT(*) as count FROM calendar_events WHERE school = $1 AND status = 'pending'").get(school);
       stats.total_students = totalStudents.count;
       stats.total_lecturers = totalLecturers.count;
       stats.total_courses = totalCourses.count;
@@ -154,13 +153,13 @@ router.get('/', async (req, res) => {
     const recentNews = await db.prepare(`
       SELECT n.*, u.full_name as author FROM news n
       JOIN users u ON u.id = n.published_by
-      WHERE (n.school = ? OR n.school IS NULL) AND n.status = 'approved'
+      WHERE (n.school = $1 OR n.school IS NULL) AND n.status = 'approved'
       ORDER BY n.created_at DESC LIMIT 5
     `).all(school === 'All' ? null : school);
 
     const upcomingEvents = await db.prepare(`
       SELECT * FROM calendar_events
-      WHERE (school = ? OR school IS NULL) AND event_date >= datetime('now') AND status = 'approved'
+      WHERE (school = $1 OR school IS NULL) AND event_date >= NOW() AND status = 'approved'
       ORDER BY event_date ASC LIMIT 10
     `).all(school === 'All' ? null : school);
 

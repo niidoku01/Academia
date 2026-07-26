@@ -42,14 +42,14 @@ router.get('/', async (req, res) => {
     if (req.user.role === 'student') {
       query = `
         SELECT a.*, c.code as course_code, c.title as course_title,
-        (SELECT id FROM submissions WHERE assignment_id = a.id AND student_id = ?) as submitted,
-        (SELECT grade FROM submissions WHERE assignment_id = a.id AND student_id = ?) as my_grade
+        (SELECT id FROM submissions WHERE assignment_id = a.id AND student_id = $1) as submitted,
+        (SELECT grade FROM submissions WHERE assignment_id = a.id AND student_id = $1) as my_grade
         FROM assignments a
         JOIN courses c ON c.id = a.course_id
-        JOIN enrollments e ON e.course_id = a.course_id AND e.student_id = ?
+        JOIN enrollments e ON e.course_id = a.course_id AND e.student_id = $1
         ORDER BY a.due_date ASC
       `;
-      params = [req.user.id, req.user.id, req.user.id];
+      params = [req.user.id];
     } else if (req.user.role === 'lecturer') {
       query = `
         SELECT a.*, c.code as course_code, c.title as course_title,
@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.id AND grade IS NOT NULL) as graded_count
         FROM assignments a
         JOIN courses c ON c.id = a.course_id
-        WHERE a.created_by = ?
+        WHERE a.created_by = $1
         ORDER BY a.created_at DESC
       `;
       params = [req.user.id];
@@ -88,7 +88,7 @@ router.get('/midsems', async (req, res) => {
         SELECT m.*, c.code as course_code, c.title as course_title
         FROM midsem_exams m
         JOIN courses c ON c.id = m.course_id
-        JOIN enrollments e ON e.course_id = m.course_id AND e.student_id = ?
+        JOIN enrollments e ON e.course_id = m.course_id AND e.student_id = $1
         ORDER BY m.exam_date ASC
       `;
       params = [req.user.id];
@@ -97,7 +97,7 @@ router.get('/midsems', async (req, res) => {
         SELECT m.*, c.code as course_code, c.title as course_title
         FROM midsem_exams m
         JOIN courses c ON c.id = m.course_id
-        WHERE m.created_by = ?
+        WHERE m.created_by = $1
         ORDER BY m.created_at DESC
       `;
       params = [req.user.id];
@@ -133,7 +133,7 @@ router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), async 
     if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
     const result = await db.prepare(
-      'INSERT INTO assignments (course_id, title, description, due_date, total_marks, attachment_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO assignments (course_id, title, description, due_date, total_marks, attachment_path, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)'
     ).run(courseId, safeTitle, safeDescription, dueDate, totalMarks, filePath, req.user.id);
 
     logAudit('create_assignment', { courseId, title: safeTitle }, req.user.id);
@@ -161,7 +161,7 @@ router.post('/midsem', authorizeRoles('lecturer'), async (req, res) => {
     if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
     const result = await db.prepare(
-      'INSERT INTO midsem_exams (course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO midsem_exams (course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)'
     ).run(courseId, safeTitle, safeDescription, examDate, durationMinutes, totalMarks, safeVenue, safeInstructions, req.user.id);
 
     logAudit('create_midsem', { courseId, title: safeTitle }, req.user.id);
@@ -180,11 +180,11 @@ router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('f
 
     if (!Number.isInteger(assignmentId) || assignmentId <= 0) return res.status(400).json({ error: 'Invalid assignment reference.' });
 
-    const existing = await db.prepare('SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?').get(assignmentId, req.user.id);
+    const existing = await db.prepare('SELECT id FROM submissions WHERE assignment_id = $1 AND student_id = $2').get(assignmentId, req.user.id);
     if (existing) return res.status(400).json({ error: 'Already submitted.' });
 
     await db.prepare(
-      'INSERT INTO submissions (assignment_id, student_id, file_path, notes) VALUES (?, ?, ?, ?)'
+      'INSERT INTO submissions (assignment_id, student_id, file_path, notes) VALUES ($1, $2, $3, $4)'
     ).run(assignmentId, req.user.id, filePath, safeNotes);
 
     logAudit('submit_assignment', { assignmentId }, req.user.id);
@@ -199,7 +199,7 @@ router.get('/submissions/:assignmentId', authorizeRoles('lecturer'), async (req,
     const submissions = await db.prepare(`
       SELECT s.*, u.full_name, u.matric_number, u.email
       FROM submissions s JOIN users u ON u.id = s.student_id
-      WHERE s.assignment_id = ?
+      WHERE s.assignment_id = $1
     `).all(req.params.assignmentId);
     res.json(submissions);
   } catch (err) {
@@ -217,7 +217,7 @@ router.put('/grade/:submissionId', authorizeRoles('lecturer'), async (req, res) 
     if (!Number.isInteger(submissionId) || submissionId <= 0) return res.status(400).json({ error: 'Invalid submission reference.' });
     if (!Number.isInteger(numericGrade) || numericGrade < 0 || numericGrade > 100) return res.status(400).json({ error: 'Grade must be between 0 and 100.' });
 
-    await db.prepare('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?').run(numericGrade, safeFeedback, submissionId);
+    await db.prepare('UPDATE submissions SET grade = $1, feedback = $2 WHERE id = $3').run(numericGrade, safeFeedback, submissionId);
     logAudit('grade_submission', { submissionId, grade: numericGrade }, req.user.id);
     res.json({ message: 'Graded successfully' });
   } catch (err) {

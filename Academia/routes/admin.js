@@ -30,7 +30,7 @@ router.get('/users', authorizeRoles('admin', 'school_admin'), async (req, res) =
   try {
     let users;
     if (req.user.role === 'school_admin') {
-      users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users WHERE school = ? ORDER BY created_at DESC').all(req.user.school);
+      users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users WHERE school = $1 ORDER BY created_at DESC').all(req.user.school);
     } else {
       users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users ORDER BY created_at DESC').all();
     }
@@ -58,7 +58,7 @@ router.post('/users', authorizeRoles('admin', 'school_admin'), async (req, res) 
 
     const hashedPassword = bcrypt.hashSync(password, 12);
     const result = await db.prepare(
-      'INSERT INTO users (full_name, email, password, role, school, department, level, matric_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (full_name, email, password, role, school, department, level, matric_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)'
     ).run(safeFullName, safeEmail, hashedPassword, safeRole, safeSchool, sanitizeText(department) || null, normalizeText(level) || null, sanitizeText(matric_number) || null);
     logAudit('admin_create_user', { email: safeEmail, role: safeRole }, req.user.id);
     res.json({ message: 'User created', id: result.lastInsertRowid });
@@ -71,21 +71,21 @@ router.delete('/users/:id', authorizeRoles('admin', 'school_admin'), async (req,
   try {
     const userId = Number(req.params.id);
     if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ error: 'Invalid user id.' });
-    const target = await db.prepare('SELECT role FROM users WHERE id = ?').get(userId);
+    const target = await db.prepare('SELECT role FROM users WHERE id = $1').get(userId);
     if (!target) return res.status(404).json({ error: 'User not found.' });
     if (target.role === 'admin') return res.status(400).json({ error: 'Cannot delete admin users.' });
 
-    await db.prepare('DELETE FROM submissions WHERE student_id = ?').run(userId);
-    await db.prepare('DELETE FROM enrollments WHERE student_id = ?').run(userId);
-    await db.prepare('DELETE FROM assignments WHERE created_by = ?').run(userId);
-    await db.prepare('DELETE FROM midsem_exams WHERE created_by = ?').run(userId);
-    await db.prepare('DELETE FROM materials WHERE uploaded_by = ?').run(userId);
-    await db.prepare('DELETE FROM news WHERE published_by = ?').run(userId);
-    await db.prepare('DELETE FROM calendar_events WHERE created_by = ?').run(userId);
-    await db.prepare('DELETE FROM lecturer_profiles WHERE user_id = ?').run(userId);
-    await db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId);
-    await db.prepare('DELETE FROM mfa_tokens WHERE user_id = ?').run(userId);
-    await db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    await db.prepare('DELETE FROM submissions WHERE student_id = $1').run(userId);
+    await db.prepare('DELETE FROM enrollments WHERE student_id = $1').run(userId);
+    await db.prepare('DELETE FROM assignments WHERE created_by = $1').run(userId);
+    await db.prepare('DELETE FROM midsem_exams WHERE created_by = $1').run(userId);
+    await db.prepare('DELETE FROM materials WHERE uploaded_by = $1').run(userId);
+    await db.prepare('DELETE FROM news WHERE published_by = $1').run(userId);
+    await db.prepare('DELETE FROM calendar_events WHERE created_by = $1').run(userId);
+    await db.prepare('DELETE FROM lecturer_profiles WHERE user_id = $1').run(userId);
+    await db.prepare('DELETE FROM password_reset_tokens WHERE user_id = $1').run(userId);
+    await db.prepare('DELETE FROM mfa_tokens WHERE user_id = $1').run(userId);
+    await db.prepare('DELETE FROM users WHERE id = $1').run(userId);
 
     logAudit('admin_delete_user', { targetUserId: userId }, req.user.id);
     res.json({ message: 'User deleted' });
@@ -101,10 +101,11 @@ router.get('/courses', authorizeRoles('admin', 'school_admin'), async (req, res)
       (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as enrolled_count
       FROM courses c LEFT JOIN users u ON u.id = c.lecturer_id WHERE 1=1`;
     const params = [];
-    if (req.user.role === 'school_admin') { query += ' AND c.school = ?'; params.push(req.user.school); }
-    if (status) { query += ' AND c.status = ?'; params.push(status); }
-    if (semester) { query += ' AND c.semester = ?'; params.push(semester); }
-    if (academic_year) { query += ' AND c.academic_year = ?'; params.push(academic_year); }
+    let idx = 1;
+    if (req.user.role === 'school_admin') { query += ` AND c.school = $${idx++}`; params.push(req.user.school); }
+    if (status) { query += ` AND c.status = $${idx++}`; params.push(status); }
+    if (semester) { query += ` AND c.semester = $${idx++}`; params.push(semester); }
+    if (academic_year) { query += ` AND c.academic_year = $${idx++}`; params.push(academic_year); }
     query += ' ORDER BY c.status, c.level, c.code';
     const courses = await db.prepare(query).all(...params);
     res.json(courses);
@@ -134,7 +135,7 @@ router.post('/courses', authorizeRoles('lecturer', 'school_admin'), async (req, 
     if (!validateSemester(safeSemester)) return res.status(400).json({ error: 'Invalid semester.' });
 
     const result = await db.prepare(
-      'INSERT INTO courses (code, title, description, level, school, department, semester, academic_year, status, lecturer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO courses (code, title, description, level, school, department, semester, academic_year, status, lecturer_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)'
     ).run(safeCode, safeTitle, safeDescription, safeLevel, safeSchool, safeDepartment || null, safeSemester, safeAcademicYear, status, lid);
 
     logAudit('admin_create_course', { id: result.lastInsertRowid, code: safeCode }, req.user.id);
@@ -148,7 +149,7 @@ router.put('/courses/:id/publish', authorizeRoles('admin', 'school_admin'), asyn
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
-    await db.prepare("UPDATE courses SET status = 'published' WHERE id = ?").run(courseId);
+    await db.prepare("UPDATE courses SET status = 'published' WHERE id = $1").run(courseId);
     logAudit('admin_publish_course', { courseId }, req.user.id);
     res.json({ message: 'Course published' });
   } catch (err) {
@@ -160,7 +161,7 @@ router.put('/courses/:id/unpublish', authorizeRoles('admin', 'school_admin'), as
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
-    await db.prepare("UPDATE courses SET status = 'draft' WHERE id = ?").run(courseId);
+    await db.prepare("UPDATE courses SET status = 'draft' WHERE id = $1").run(courseId);
     logAudit('admin_unpublish_course', { courseId }, req.user.id);
     res.json({ message: 'Course unpublished' });
   } catch (err) {
@@ -173,13 +174,13 @@ router.put('/courses/:id/delete', authorizeRoles('admin', 'school_admin'), async
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
 
-    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = ?)').run(courseId);
-    await db.prepare('DELETE FROM assignments WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM enrollments WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM materials WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM midsem_exams WHERE course_id = ?').run(courseId);
-    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = ?").run(courseId);
-    await db.prepare('DELETE FROM courses WHERE id = ?').run(courseId);
+    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = $1)').run(courseId);
+    await db.prepare('DELETE FROM assignments WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM enrollments WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM materials WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM midsem_exams WHERE course_id = $1').run(courseId);
+    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = $1").run(courseId);
+    await db.prepare('DELETE FROM courses WHERE id = $1').run(courseId);
 
     logAudit('admin_delete_course', { courseId }, req.user.id);
     res.json({ message: 'Course deleted' });
@@ -193,13 +194,13 @@ router.delete('/courses/:id', authorizeRoles('admin', 'school_admin'), async (re
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
 
-    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = ?)').run(courseId);
-    await db.prepare('DELETE FROM assignments WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM enrollments WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM materials WHERE course_id = ?').run(courseId);
-    await db.prepare('DELETE FROM midsem_exams WHERE course_id = ?').run(courseId);
-    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = ?").run(courseId);
-    await db.prepare('DELETE FROM courses WHERE id = ?').run(courseId);
+    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = $1)').run(courseId);
+    await db.prepare('DELETE FROM assignments WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM enrollments WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM materials WHERE course_id = $1').run(courseId);
+    await db.prepare('DELETE FROM midsem_exams WHERE course_id = $1').run(courseId);
+    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = $1").run(courseId);
+    await db.prepare('DELETE FROM courses WHERE id = $1').run(courseId);
 
     logAudit('admin_delete_course', { courseId }, req.user.id);
     res.json({ message: 'Course deleted' });
@@ -208,14 +209,14 @@ router.delete('/courses/:id', authorizeRoles('admin', 'school_admin'), async (re
   }
 });
 
-// News approval
 router.get('/news', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
     const { status } = req.query;
     let query = 'SELECT n.*, u.full_name as author FROM news n JOIN users u ON u.id = n.published_by WHERE 1=1';
     const params = [];
-    if (req.user.role === 'school_admin') { query += ' AND (n.school = ? OR n.school IS NULL)'; params.push(req.user.school); }
-    if (status) { query += ' AND n.status = ?'; params.push(status); }
+    let idx = 1;
+    if (req.user.role === 'school_admin') { query += ` AND (n.school = $${idx} OR n.school IS NULL)`; params.push(req.user.school); idx++; }
+    if (status) { query += ` AND n.status = $${idx}`; params.push(status); idx++; }
     query += ' ORDER BY n.created_at DESC';
     const news = await db.prepare(query).all(...params);
     res.json(news);
@@ -228,7 +229,7 @@ router.put('/news/:id/approve', authorizeRoles('admin', 'school_admin'), async (
   try {
     const newsId = Number(req.params.id);
     if (!Number.isInteger(newsId) || newsId <= 0) return res.status(400).json({ error: 'Invalid news id.' });
-    await db.prepare("UPDATE news SET status = 'approved' WHERE id = ?").run(newsId);
+    await db.prepare("UPDATE news SET status = 'approved' WHERE id = $1").run(newsId);
     logAudit('admin_approve_news', { newsId }, req.user.id);
     res.json({ message: 'News approved' });
   } catch (err) {
@@ -240,7 +241,7 @@ router.put('/news/:id/reject', authorizeRoles('admin', 'school_admin'), async (r
   try {
     const newsId = Number(req.params.id);
     if (!Number.isInteger(newsId) || newsId <= 0) return res.status(400).json({ error: 'Invalid news id.' });
-    await db.prepare("UPDATE news SET status = 'rejected' WHERE id = ?").run(newsId);
+    await db.prepare("UPDATE news SET status = 'rejected' WHERE id = $1").run(newsId);
     logAudit('admin_reject_news', { newsId }, req.user.id);
     res.json({ message: 'News rejected' });
   } catch (err) {
@@ -248,14 +249,14 @@ router.put('/news/:id/reject', authorizeRoles('admin', 'school_admin'), async (r
   }
 });
 
-// Calendar event approval
 router.get('/events', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
     const { status } = req.query;
     let query = 'SELECT ce.*, c.code as course_code, u.full_name as created_by_name FROM calendar_events ce LEFT JOIN courses c ON c.id = ce.course_id JOIN users u ON u.id = ce.created_by WHERE 1=1';
     const params = [];
-    if (req.user.role === 'school_admin') { query += ' AND (ce.school = ? OR ce.school IS NULL)'; params.push(req.user.school); }
-    if (status) { query += ' AND ce.status = ?'; params.push(status); }
+    let idx = 1;
+    if (req.user.role === 'school_admin') { query += ` AND (ce.school = $${idx} OR ce.school IS NULL)`; params.push(req.user.school); idx++; }
+    if (status) { query += ` AND ce.status = $${idx}`; params.push(status); idx++; }
     query += ' ORDER BY ce.event_date DESC';
     const events = await db.prepare(query).all(...params);
     res.json(events);
@@ -268,7 +269,7 @@ router.put('/events/:id/approve', authorizeRoles('admin', 'school_admin'), async
   try {
     const eventId = Number(req.params.id);
     if (!Number.isInteger(eventId) || eventId <= 0) return res.status(400).json({ error: 'Invalid event id.' });
-    await db.prepare("UPDATE calendar_events SET status = 'approved' WHERE id = ?").run(eventId);
+    await db.prepare("UPDATE calendar_events SET status = 'approved' WHERE id = $1").run(eventId);
     logAudit('admin_approve_event', { eventId }, req.user.id);
     res.json({ message: 'Event approved' });
   } catch (err) {
@@ -280,7 +281,7 @@ router.put('/events/:id/reject', authorizeRoles('admin', 'school_admin'), async 
   try {
     const eventId = Number(req.params.id);
     if (!Number.isInteger(eventId) || eventId <= 0) return res.status(400).json({ error: 'Invalid event id.' });
-    await db.prepare("UPDATE calendar_events SET status = 'rejected' WHERE id = ?").run(eventId);
+    await db.prepare("UPDATE calendar_events SET status = 'rejected' WHERE id = $1").run(eventId);
     logAudit('admin_reject_event', { eventId }, req.user.id);
     res.json({ message: 'Event rejected' });
   } catch (err) {
@@ -290,16 +291,17 @@ router.put('/events/:id/reject', authorizeRoles('admin', 'school_admin'), async 
 
 router.get('/stats', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
-    const schoolFilter = req.user.role === 'school_admin' ? ' AND school = ?' : '';
-    const schoolParam = req.user.role === 'school_admin' ? [req.user.school] : [];
+    const schoolFilter = req.user.role === 'school_admin';
+    const params = schoolFilter ? [req.user.school] : [];
+    const idx = (n) => `$${n}`;
 
-    const students = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'student'${schoolFilter}`).get(...schoolParam);
-    const lecturers = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'lecturer'${schoolFilter}`).get(...schoolParam);
-    const totalCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE 1=1${schoolFilter}`).get(...schoolParam);
-    const draftCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE status = 'draft'${schoolFilter}`).get(...schoolParam);
-    const publishedCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE status = 'published'${schoolFilter}`).get(...schoolParam);
-    const pendingNews = await db.prepare(`SELECT COUNT(*) as count FROM news WHERE status = 'pending'${schoolFilter}`).get(...schoolParam);
-    const pendingEvents = await db.prepare(`SELECT COUNT(*) as count FROM calendar_events WHERE status = 'pending'${schoolFilter}`).get(...schoolParam);
+    const students = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'student'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const lecturers = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'lecturer'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const totalCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE 1=1${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const draftCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE status = 'draft'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const publishedCourses = await db.prepare(`SELECT COUNT(*) as count FROM courses WHERE status = 'published'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const pendingNews = await db.prepare(`SELECT COUNT(*) as count FROM news WHERE status = 'pending'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
+    const pendingEvents = await db.prepare(`SELECT COUNT(*) as count FROM calendar_events WHERE status = 'pending'${schoolFilter ? ` AND school = ${idx(1)}` : ''}`).get(...params);
 
     res.json({
       total_students: students.count,
@@ -322,7 +324,7 @@ router.get('/courses-by-programme', authorizeRoles('admin', 'school_admin'), asy
       FROM courses c
       LEFT JOIN users u ON u.id = c.lecturer_id`;
     const params = [];
-    if (req.user.role === 'school_admin') { query += ' WHERE c.school = ?'; params.push(req.user.school); }
+    if (req.user.role === 'school_admin') { query += ' WHERE c.school = $1'; params.push(req.user.school); }
     query += ' ORDER BY c.school, c.department, c.level, c.code';
     const courses = await db.prepare(query).all(...params);
 
@@ -349,14 +351,14 @@ router.get('/lecturer-portraits', authorizeRoles('admin', 'school_admin'), async
         lp.bio, lp.office_location, lp.phone, lp.office_hours,
         lp.specialization, lp.qualification, lp.photo_path
       FROM users u LEFT JOIN lecturer_profiles lp ON lp.user_id = u.id
-      WHERE u.role = 'lecturer'${schoolFilter ? ' AND u.school = ?' : ''}
+      WHERE u.role = 'lecturer'${schoolFilter ? ' AND u.school = $1' : ''}
       ORDER BY u.school, u.full_name`;
     const lecturers = schoolFilter ? await db.prepare(lectQuery).all(schoolParam) : await db.prepare(lectQuery).all();
 
     let adminQuery = `SELECT u.id, u.full_name, u.email, u.department, u.school, u.role,
         ap.position, ap.bio, ap.phone, ap.photo_path
       FROM users u LEFT JOIN admin_profiles ap ON ap.user_id = u.id
-      WHERE u.role IN ('admin', 'school_admin')${schoolFilter ? ' AND u.school = ?' : ''}
+      WHERE u.role IN ('admin', 'school_admin')${schoolFilter ? ' AND u.school = $1' : ''}
       ORDER BY u.full_name`;
     const admins = schoolFilter ? await db.prepare(adminQuery).all(schoolParam) : await db.prepare(adminQuery).all();
 

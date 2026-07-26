@@ -33,19 +33,21 @@ router.get('/', async (req, res) => {
     const { category, search, status: statusFilter } = req.query;
     let query = 'SELECT n.*, u.full_name as author FROM news n JOIN users u ON u.id = n.published_by WHERE 1=1';
     const params = [];
+    let idx = 1;
 
     if (req.user.role === 'student') {
-      query += " AND n.status = 'approved' AND (n.school = ? OR n.school IS NULL)";
+      query += ` AND n.status = 'approved' AND (n.school = $${idx} OR n.school IS NULL)`;
       params.push(req.user.school);
+      idx++;
     } else if (req.user.role === 'lecturer') {
-      query += ' AND n.published_by = ?';
+      query += ` AND n.published_by = $${idx}`;
       params.push(req.user.id);
-      if (statusFilter) { query += ' AND n.status = ?'; params.push(statusFilter); }
+      idx++;
+      if (statusFilter) { query += ` AND n.status = $${idx}`; params.push(statusFilter); idx++; }
     }
-    // admin uses /api/admin/news
 
-    if (category) { query += ' AND n.category = ?'; params.push(category); }
-    if (search) { query += ' AND (n.title LIKE ? OR n.content LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+    if (category) { query += ` AND n.category = $${idx}`; params.push(category); idx++; }
+    if (search) { query += ` AND (n.title LIKE $${idx} OR n.content LIKE $${idx})`; params.push(`%${search}%`, `%${search}%`); idx += 2; }
 
     query += ' ORDER BY n.is_pinned DESC, n.created_at DESC';
     const news = await db.prepare(query).all(...params);
@@ -59,7 +61,7 @@ router.get('/:id', async (req, res) => {
   try {
     const article = await db.prepare(`
       SELECT n.*, u.full_name as author FROM news n
-      JOIN users u ON u.id = n.published_by WHERE n.id = ?
+      JOIN users u ON u.id = n.published_by WHERE n.id = $1
     `).get(req.params.id);
     if (!article) return res.status(404).json({ error: 'Article not found' });
     res.json(article);
@@ -82,7 +84,7 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), as
     if (!['announcement', 'event', 'update', 'urgent'].includes(safeCategory)) return res.status(400).json({ error: 'Invalid news category.' });
 
     const result = await db.prepare(
-      'INSERT INTO news (title, content, category, school, image_path, published_by, status, is_pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO news (title, content, category, school, image_path, published_by, status, is_pinned) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)'
     ).run(safeTitle, safeContent, safeCategory, safeSchool, imagePath, req.user.id, status, is_pinned ? 1 : 0);
 
     logAudit('create_news', { title: safeTitle, category: safeCategory }, req.user.id);
@@ -96,7 +98,7 @@ router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
   try {
     const newsId = Number(req.params.id);
     if (!Number.isInteger(newsId) || newsId <= 0) return res.status(400).json({ error: 'Invalid article id.' });
-    await db.prepare('DELETE FROM news WHERE id = ?').run(newsId);
+    await db.prepare('DELETE FROM news WHERE id = $1').run(newsId);
     logAudit('delete_news', { newsId }, req.user.id);
     res.json({ message: 'Article deleted' });
   } catch (err) {

@@ -47,29 +47,30 @@ router.get('/', async (req, res) => {
     const { level, semester, school, search } = req.query;
     let query = 'SELECT c.*, u.full_name as lecturer_name FROM courses c LEFT JOIN users u ON u.id = c.lecturer_id WHERE 1=1';
     const params = [];
+    let idx = 1;
 
     if (req.user.role === 'student') {
       query += " AND c.status = 'published'";
-      const student = await db.prepare('SELECT school, level FROM users WHERE id = ?').get(req.user.id);
+      const student = await db.prepare('SELECT school, level FROM users WHERE id = $1').get(req.user.id);
       if (student) {
-        if (student.school) { query += ' AND (c.school = ? OR c.school IS NULL)'; params.push(student.school); }
-        if (student.level) { query += ' AND c.level = ?'; params.push(student.level); }
+        if (student.school) { query += ` AND (c.school = $${idx} OR c.school IS NULL)`; params.push(student.school); idx++; }
+        if (student.level) { query += ` AND c.level = $${idx}`; params.push(student.level); idx++; }
       }
     } else if (req.user.role === 'lecturer') {
-      query += ' AND c.lecturer_id = ?';
+      query += ` AND c.lecturer_id = $${idx}`;
       params.push(req.user.id);
+      idx++;
     }
-    // admin sees all via /api/admin/courses
 
-    if (level) { query += ' AND c.level = ?'; params.push(level); }
-    if (semester) { query += ' AND c.semester = ?'; params.push(semester); }
-    if (school) { query += ' AND c.school = ?'; params.push(school); }
-    if (search) { query += ' AND (c.code LIKE ? OR c.title LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
+    if (level) { query += ` AND c.level = $${idx}`; params.push(level); idx++; }
+    if (semester) { query += ` AND c.semester = $${idx}`; params.push(semester); idx++; }
+    if (school) { query += ` AND c.school = $${idx}`; params.push(school); idx++; }
+    if (search) { query += ` AND (c.code LIKE $${idx} OR c.title LIKE $${idx})`; params.push(`%${search}%`, `%${search}%`); idx += 2; }
 
     const courses = await db.prepare(query).all(...params);
 
     if (req.user.role === 'student') {
-      const enrollments = await db.prepare('SELECT course_id FROM enrollments WHERE student_id = ?').all(req.user.id);
+      const enrollments = await db.prepare('SELECT course_id FROM enrollments WHERE student_id = $1').all(req.user.id);
       const enrolledIds = new Set(enrollments.map(e => e.course_id));
       courses.forEach(c => { c.enrolled = enrolledIds.has(c.id); });
     }
@@ -85,7 +86,7 @@ router.get('/:id/materials', async (req, res) => {
     const materials = await db.prepare(`
       SELECT m.*, u.full_name as uploaded_by_name
       FROM materials m JOIN users u ON u.id = m.uploaded_by
-      WHERE m.course_id = ? ORDER BY m.created_at DESC
+      WHERE m.course_id = $1 ORDER BY m.created_at DESC
     `).all(req.params.id);
     res.json(materials);
   } catch (err) {
@@ -100,7 +101,7 @@ router.get('/my-materials', authorizeRoles('student'), async (req, res) => {
       FROM materials m
       JOIN courses c ON c.id = m.course_id
       JOIN users u ON u.id = m.uploaded_by
-      JOIN enrollments e ON e.course_id = m.course_id AND e.student_id = ?
+      JOIN enrollments e ON e.course_id = m.course_id AND e.student_id = $1
       ORDER BY m.created_at DESC
     `).all(req.user.id);
     res.json(materials);
@@ -114,21 +115,24 @@ router.get('/browse', async (req, res) => {
     const { level, semester, category, search } = req.query;
     let query = 'SELECT m.*, c.code as course_code, c.title as course_title, u.full_name as uploaded_by_name FROM materials m JOIN courses c ON c.id = m.course_id JOIN users u ON u.id = m.uploaded_by WHERE 1=1';
     const params = [];
+    let idx = 1;
 
     if (req.user.role === 'student') {
-      query += ' AND c.school = ?';
+      query += ` AND c.school = $${idx}`;
       params.push(req.user.school);
-      const studentLevel = await db.prepare('SELECT level FROM users WHERE id = ?').get(req.user.id);
+      idx++;
+      const studentLevel = await db.prepare('SELECT level FROM users WHERE id = $1').get(req.user.id);
       if (studentLevel && studentLevel.level) {
-        query += ' AND c.level = ?';
+        query += ` AND c.level = $${idx}`;
         params.push(studentLevel.level);
+        idx++;
       }
     }
 
-    if (level) { query += ' AND c.level = ?'; params.push(level); }
-    if (semester) { query += ' AND c.semester = ?'; params.push(semester); }
-    if (category) { query += ' AND m.category = ?'; params.push(category); }
-    if (search) { query += ' AND (m.title LIKE ? OR c.code LIKE ? OR c.title LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
+    if (level) { query += ` AND c.level = $${idx}`; params.push(level); idx++; }
+    if (semester) { query += ` AND c.semester = $${idx}`; params.push(semester); idx++; }
+    if (category) { query += ` AND m.category = $${idx}`; params.push(category); idx++; }
+    if (search) { query += ` AND (m.title LIKE $${idx} OR c.code LIKE $${idx} OR c.title LIKE $${idx})`; params.push(`%${search}%`, `%${search}%`, `%${search}%`); idx += 3; }
 
     query += ' ORDER BY m.created_at DESC';
     const materials = await db.prepare(query).all(...params);
@@ -158,7 +162,7 @@ router.post('/', authorizeRoles('lecturer'), upload.single('file'), async (req, 
     if (!validateCategory(safeCategory)) return res.status(400).json({ error: 'Invalid material category.' });
 
     const result = await db.prepare(
-      'INSERT INTO materials (course_id, title, description, file_path, file_type, uploaded_by, level, semester, academic_year, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO materials (course_id, title, description, file_path, file_type, uploaded_by, level, semester, academic_year, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)'
     ).run(courseId, safeTitle, safeDescription, filePath, fileType, req.user.id, safeLevel, safeSemester, safeAcademicYear, safeCategory);
 
     logAudit('upload_material', { courseId, title: safeTitle }, req.user.id);
@@ -173,11 +177,11 @@ router.post('/enroll', authorizeRoles('student'), async (req, res) => {
     const { course_id } = req.body;
     const courseId = Number(course_id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
-    const course = await db.prepare("SELECT id, status FROM courses WHERE id = ?").get(courseId);
+    const course = await db.prepare("SELECT id, status FROM courses WHERE id = $1").get(courseId);
     if (!course || course.status !== 'published') {
       return res.status(400).json({ error: 'Course is not available for registration.' });
     }
-    await db.prepare('INSERT OR IGNORE INTO enrollments (student_id, course_id) VALUES (?, ?)').run(req.user.id, courseId);
+    await db.prepare('INSERT INTO enrollments (student_id, course_id) VALUES ($1, $2) ON CONFLICT DO NOTHING').run(req.user.id, courseId);
     logAudit('enroll_course', { courseId }, req.user.id);
     res.json({ message: 'Registered successfully' });
   } catch (err) {
@@ -190,7 +194,7 @@ router.post('/unenroll', authorizeRoles('student'), async (req, res) => {
     const { course_id } = req.body;
     const courseId = Number(course_id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
-    await db.prepare('DELETE FROM enrollments WHERE student_id = ? AND course_id = ?').run(req.user.id, courseId);
+    await db.prepare('DELETE FROM enrollments WHERE student_id = $1 AND course_id = $2').run(req.user.id, courseId);
     logAudit('unenroll_course', { courseId }, req.user.id);
     res.json({ message: 'Dropped successfully' });
   } catch (err) {
@@ -204,7 +208,7 @@ router.get('/enrolled', authorizeRoles('student'), async (req, res) => {
       SELECT c.*, u.full_name as lecturer_name FROM courses c
       JOIN enrollments e ON e.course_id = c.id
       LEFT JOIN users u ON u.id = c.lecturer_id
-      WHERE e.student_id = ?
+      WHERE e.student_id = $1
     `).all(req.user.id);
     res.json(courses);
   } catch (err) {

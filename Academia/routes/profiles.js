@@ -21,7 +21,7 @@ function imageFilter(req, file, cb) {
 }
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFilter });
 
-router.get('/lecturers', (req, res) => {
+router.get('/lecturers', async (req, res) => {
   try {
     const { school, department, search } = req.query;
     let query = `
@@ -33,28 +33,29 @@ router.get('/lecturers', (req, res) => {
       WHERE u.role = 'lecturer'
     `;
     const params = [];
+    let idx = 1;
 
-    if (school) { query += ' AND u.school = ?'; params.push(school); }
-    if (department) { query += ' AND u.department = ?'; params.push(department); }
-    if (search) { query += ' AND (u.full_name LIKE ? OR u.department LIKE ? OR lp.specialization LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
+    if (school) { query += ` AND u.school = $${idx}`; params.push(school); idx++; }
+    if (department) { query += ` AND u.department = $${idx}`; params.push(department); idx++; }
+    if (search) { query += ` AND (u.full_name LIKE $${idx} OR u.department LIKE $${idx} OR lp.specialization LIKE $${idx})`; params.push(`%${search}%`, `%${search}%`, `%${search}%`); idx += 3; }
 
     query += ' ORDER BY u.full_name';
-    const lecturers = db.prepare(query).all(...params);
+    const lecturers = await db.prepare(query).all(...params);
     res.json(lecturers);
   } catch (err) {
     handleDbError(res, err, 'Unable to load lecturers');
   }
 });
 
-router.get('/lecturers/:userId', (req, res) => {
+router.get('/lecturers/:userId', async (req, res) => {
   try {
-    const lecturer = db.prepare(`
+    const lecturer = await db.prepare(`
       SELECT u.id, u.full_name, u.email, u.department, u.school,
         lp.bio, lp.office_location, lp.phone, lp.office_hours,
         lp.specialization, lp.qualification, lp.photo_path
       FROM users u
       LEFT JOIN lecturer_profiles lp ON lp.user_id = u.id
-      WHERE u.id = ? AND u.role = 'lecturer'
+      WHERE u.id = $1 AND u.role = 'lecturer'
     `).get(req.params.userId);
 
     if (!lecturer) return res.status(404).json({ error: 'Lecturer not found' });
@@ -64,16 +65,16 @@ router.get('/lecturers/:userId', (req, res) => {
   }
 });
 
-router.get('/my-profile', authorizeRoles('lecturer', 'admin'), (req, res) => {
+router.get('/my-profile', authorizeRoles('lecturer', 'admin'), async (req, res) => {
   try {
-    const profile = db.prepare('SELECT * FROM lecturer_profiles WHERE user_id = ?').get(req.user.id);
+    const profile = await db.prepare('SELECT * FROM lecturer_profiles WHERE user_id = $1').get(req.user.id);
     res.json(profile || {});
   } catch (err) {
     handleDbError(res, err, 'Unable to load profile');
   }
 });
 
-router.post('/my-profile', authorizeRoles('lecturer'), upload.single('photo'), (req, res) => {
+router.post('/my-profile', authorizeRoles('lecturer'), upload.single('photo'), async (req, res) => {
   try {
     const { bio, office_location, phone, office_hours, specialization, qualification } = req.body;
     const safeBio = sanitizeText(bio);
@@ -84,24 +85,25 @@ router.post('/my-profile', authorizeRoles('lecturer'), upload.single('photo'), (
     const safeQual = sanitizeText(qualification);
     const photoPath = req.file ? `/api/files/${req.file.filename}` : null;
 
-    const existing = db.prepare('SELECT id FROM lecturer_profiles WHERE user_id = ?').get(req.user.id);
+    const existing = await db.prepare('SELECT id FROM lecturer_profiles WHERE user_id = $1').get(req.user.id);
 
     if (existing) {
       const updates = [];
       const params = [];
-      updates.push('bio = ?'); params.push(safeBio);
-      updates.push('office_location = ?'); params.push(safeOffice);
-      updates.push('phone = ?'); params.push(safePhone);
-      updates.push('office_hours = ?'); params.push(safeHours);
-      updates.push('specialization = ?'); params.push(safeSpec);
-      updates.push('qualification = ?'); params.push(safeQual);
-      if (photoPath) { updates.push('photo_path = ?'); params.push(photoPath); }
-      updates.push("updated_at = datetime('now')");
+      let idx = 1;
+      updates.push(`bio = $${idx++}`); params.push(safeBio);
+      updates.push(`office_location = $${idx++}`); params.push(safeOffice);
+      updates.push(`phone = $${idx++}`); params.push(safePhone);
+      updates.push(`office_hours = $${idx++}`); params.push(safeHours);
+      updates.push(`specialization = $${idx++}`); params.push(safeSpec);
+      updates.push(`qualification = $${idx++}`); params.push(safeQual);
+      if (photoPath) { updates.push(`photo_path = $${idx++}`); params.push(photoPath); }
+      updates.push("updated_at = NOW()");
       params.push(req.user.id);
-      db.prepare(`UPDATE lecturer_profiles SET ${updates.join(', ')} WHERE user_id = ?`).run(...params);
+      await db.prepare(`UPDATE lecturer_profiles SET ${updates.join(', ')} WHERE user_id = $${idx}`).run(...params);
     } else {
-      db.prepare(
-        'INSERT INTO lecturer_profiles (user_id, bio, office_location, phone, office_hours, specialization, qualification, photo_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      await db.prepare(
+        'INSERT INTO lecturer_profiles (user_id, bio, office_location, phone, office_hours, specialization, qualification, photo_path) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)'
       ).run(req.user.id, safeBio, safeOffice, safePhone, safeHours, safeSpec, safeQual, photoPath);
     }
 
@@ -112,14 +114,14 @@ router.post('/my-profile', authorizeRoles('lecturer'), upload.single('photo'), (
   }
 });
 
-router.get('/admin-profile', authorizeRoles('admin', 'school_admin'), (req, res) => {
+router.get('/admin-profile', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
-    const profile = db.prepare(`
+    const profile = await db.prepare(`
       SELECT u.id, u.full_name, u.email, u.school, u.department,
         ap.position, ap.bio, ap.phone, ap.photo_path
       FROM users u
       LEFT JOIN admin_profiles ap ON ap.user_id = u.id
-      WHERE u.id = ?
+      WHERE u.id = $1
     `).get(req.user.id);
     res.json(profile || {});
   } catch (err) {
@@ -127,7 +129,7 @@ router.get('/admin-profile', authorizeRoles('admin', 'school_admin'), (req, res)
   }
 });
 
-router.post('/admin-profile', authorizeRoles('admin', 'school_admin'), upload.single('photo'), (req, res) => {
+router.post('/admin-profile', authorizeRoles('admin', 'school_admin'), upload.single('photo'), async (req, res) => {
   try {
     const { position, bio, phone } = req.body;
     const safePosition = sanitizeText(position);
@@ -135,21 +137,22 @@ router.post('/admin-profile', authorizeRoles('admin', 'school_admin'), upload.si
     const safePhone = normalizeText(phone);
     const photoPath = req.file ? `/api/files/${req.file.filename}` : null;
 
-    const existing = db.prepare('SELECT id FROM admin_profiles WHERE user_id = ?').get(req.user.id);
+    const existing = await db.prepare('SELECT id FROM admin_profiles WHERE user_id = $1').get(req.user.id);
 
     if (existing) {
       const updates = [];
       const params = [];
-      updates.push('position = ?'); params.push(safePosition);
-      updates.push('bio = ?'); params.push(safeBio);
-      updates.push('phone = ?'); params.push(safePhone);
-      if (photoPath) { updates.push('photo_path = ?'); params.push(photoPath); }
-      updates.push("updated_at = datetime('now')");
+      let idx = 1;
+      updates.push(`position = $${idx++}`); params.push(safePosition);
+      updates.push(`bio = $${idx++}`); params.push(safeBio);
+      updates.push(`phone = $${idx++}`); params.push(safePhone);
+      if (photoPath) { updates.push(`photo_path = $${idx++}`); params.push(photoPath); }
+      updates.push("updated_at = NOW()");
       params.push(req.user.id);
-      db.prepare(`UPDATE admin_profiles SET ${updates.join(', ')} WHERE user_id = ?`).run(...params);
+      await db.prepare(`UPDATE admin_profiles SET ${updates.join(', ')} WHERE user_id = $${idx}`).run(...params);
     } else {
-      db.prepare(
-        'INSERT INTO admin_profiles (user_id, position, bio, phone, photo_path) VALUES (?, ?, ?, ?, ?)'
+      await db.prepare(
+        'INSERT INTO admin_profiles (user_id, position, bio, phone, photo_path) VALUES ($1, $2, $3, $4, $5)'
       ).run(req.user.id, safePosition, safeBio, safePhone, photoPath);
     }
 
