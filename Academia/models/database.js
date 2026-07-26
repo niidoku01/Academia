@@ -3,12 +3,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const dbUrl = process.env.TURSO_DATABASE_URL
+const dbUrl = (process.env.TURSO_DATABASE_URL || '').trim()
   || (process.env.VERCEL ? 'file:/tmp/academia.db' : 'file:' + path.join(__dirname, '..', 'academia.db'));
 
 const client = createClient({
   url: dbUrl,
-  authToken: process.env.TURSO_AUTH_TOKEN || undefined
+  authToken: (process.env.TURSO_AUTH_TOKEN || '').trim() || undefined
 });
 
 const db = {

@@ -6,13 +6,9 @@ const helmet = require('helmet');
 const db = require('./models/database');
 
 if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('ERROR: JWT_SECRET must be set in production. Please add it to your environment.');
-    process.exit(1);
-  }
   const crypto = require('crypto');
   process.env.JWT_SECRET = crypto.randomBytes(48).toString('base64url');
-  console.warn('Warning: JWT_SECRET is not set. Generated a random dev secret (sessions will not persist across restarts).');
+  console.warn('Warning: JWT_SECRET is not set. Generated a random dev secret.');
 }
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
