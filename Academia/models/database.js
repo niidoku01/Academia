@@ -43,6 +43,13 @@ const db = {
       await pool.query(stmt);
     }
   },
+  async getClient() {
+    const client = await pool.connect();
+    return {
+      query: (sql, args) => client.query(sql, args),
+      release: () => client.release()
+    };
+  },
   async end() {
     await pool.end();
   }
@@ -221,6 +228,24 @@ async function initDatabase() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_users_identity_code ON users(identity_code);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    CREATE INDEX IF NOT EXISTS idx_users_school_role ON users(school, role);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+    CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
+    CREATE INDEX IF NOT EXISTS idx_assignments_course ON assignments(course_id);
+    CREATE INDEX IF NOT EXISTS idx_assignments_created_by ON assignments(created_by);
+    CREATE INDEX IF NOT EXISTS idx_assignments_due_date ON assignments(due_date);
+    CREATE INDEX IF NOT EXISTS idx_submissions_assignment ON submissions(assignment_id);
+    CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
+    CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
+    CREATE INDEX IF NOT EXISTS idx_materials_uploaded_by ON materials(uploaded_by);
+    CREATE INDEX IF NOT EXISTS idx_midsem_course ON midsem_exams(course_id);
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_date ON calendar_events(event_date);
+    CREATE INDEX IF NOT EXISTS idx_calendar_status ON calendar_events(status);
+    CREATE INDEX IF NOT EXISTS idx_calendar_school ON calendar_events(school);
+    CREATE INDEX IF NOT EXISTS idx_news_status ON news(status);
+    CREATE INDEX IF NOT EXISTS idx_news_school ON news(school);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier, attempted_at);
   `);
 
