@@ -250,12 +250,8 @@ async function initDatabase() {
   `);
 
   const existingAdmin = await db.prepare('SELECT id FROM users WHERE role = $1').get('admin');
-  if (existingAdmin && process.env.DEFAULT_ADMIN_PASSWORD) {
-    const hashedPassword = bcrypt.hashSync(process.env.DEFAULT_ADMIN_PASSWORD, 10);
-    await db.prepare('UPDATE users SET password = $1 WHERE id = $2').run(hashedPassword, existingAdmin.id);
-    console.log('Admin password reset to DEFAULT_ADMIN_PASSWORD.');
-  } else if (!existingAdmin) {
-    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || ('Admin-' + crypto.randomBytes(8).toString('hex'));
+  if (!existingAdmin) {
+    const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@1234';
     const hashedPassword = bcrypt.hashSync(defaultAdminPassword, 10);
     await db.prepare('INSERT INTO users (full_name, email, password, role, school, department) VALUES ($1, $2, $3, $4, $5, $6)')
       .run('System Admin', 'admin@academia.edu', hashedPassword, 'admin', 'All', 'Administration');
