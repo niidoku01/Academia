@@ -1,3 +1,94 @@
 /* ========== DASHBOARD PAGE STYLES ========== */
 
 /* All responsive rules are in style.css */
+
+/* Dashboard-specific mobile overrides */
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 200px;
+    border-radius: var(--radius);
+  }
+  .hero-content {
+    padding: 22px 18px;
+  }
+  .hero-name {
+    font-size: 1.3rem;
+  }
+  .hero-greeting {
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
+  }
+  .hero-info .info-chip {
+    font-size: 0.68rem;
+    padding: 3px 9px;
+  }
+  .hero-actions .btn {
+    padding: 10px 18px;
+    font-size: 0.85rem;
+  }
+
+  .quick-actions {
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .quick-action {
+    padding: 14px 8px;
+    gap: 8px;
+  }
+  .quick-action-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+  .quick-action-label {
+    font-size: 0.76rem;
+  }
+
+  .glass-card-stat {
+    padding: 16px;
+    border-radius: var(--radius);
+  }
+  .glass-card-stat .stat-icon-lg {
+    width: 42px;
+    height: 42px;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+  }
+  .glass-card-stat .stat-number {
+    font-size: 1.5rem;
+  }
+  .glass-card-stat .stat-label {
+    font-size: 0.74rem;
+  }
+
+  .bottom-grid {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    min-height: 170px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+  }
+  .hero-content { padding: 18px 14px; }
+  .hero-name { font-size: 1.1rem; margin-bottom: 6px; }
+  .hero-greeting { font-size: 0.65rem; letter-spacing: 1px; margin-bottom: 4px; }
+  .hero-info { gap: 4px; margin-bottom: 16px; }
+  .hero-info .info-chip { font-size: 0.62rem; padding: 2px 7px; }
+  .hero-actions .btn { padding: 9px 14px; font-size: 0.82rem; }
+
+  .quick-actions { gap: 6px; margin-bottom: 16px; }
+  .quick-action { padding: 12px 6px; border-radius: var(--radius-sm); }
+  .quick-action-icon { width: 38px; height: 38px; font-size: 0.95rem; }
+  .quick-action-label { font-size: 0.68rem; font-weight: 600; }
+
+  .glass-card-stat { padding: 12px; }
+  .glass-card-stat .stat-icon-lg { width: 36px; height: 36px; font-size: 1rem; margin-bottom: 8px; border-radius: var(--radius-sm); }
+  .glass-card-stat .stat-number { font-size: 1.3rem; }
+  .glass-card-stat .stat-label { font-size: 0.68rem; }
+
+  .bottom-grid { gap: 12px; margin-bottom: 16px; }
+}

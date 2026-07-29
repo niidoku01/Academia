@@ -121,7 +121,6 @@
           After signing in, change your password from the <a href="/dashboard">dashboard</a>
         </div>
         <div class="card-footer">Secured with end-to-end encryption</div>
-        </div>
       </div>
     </div>
   </div>
@@ -135,7 +134,6 @@
     const verifyMfaBtn = document.getElementById('verify-mfa-btn');
 
     if (loginForm) loginForm.addEventListener('submit', submitLogin);
-    if (identifierInput) identifierInput.addEventListener('blur', () => autocorrectGmail(identifierInput));
     if (passwordToggle) passwordToggle.addEventListener('click', () => showHide('password', passwordToggle));
     if (verifyMfaBtn) verifyMfaBtn.addEventListener('click', verifyMfa);
 
@@ -162,12 +160,6 @@
 
 
     let pendingChallengeToken = null;
-
-    function autocorrectGmail(input) {
-      let val = input.value.trim();
-      if (!val || val.includes('@')) return;
-      input.value = val + '@gmail.com';
-    }
 
     function showHide(id, btn) {
       const el = document.getElementById(id);

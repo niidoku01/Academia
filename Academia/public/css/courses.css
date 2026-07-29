@@ -126,7 +126,30 @@
 }
 
 @media (max-width: 768px) {
-  .course-grid { grid-template-columns: 1fr; }
+  .course-grid { grid-template-columns: 1fr; gap: 12px; }
   .materials-group-header { padding: 12px 14px; font-size: 0.88rem; }
-  .material-card { padding: 10px 12px; }
+  .material-card { padding: 10px 12px; gap: 10px; }
+  .material-card-icon { width: 36px; height: 36px; border-radius: 8px; }
+  .material-card-icon i, .material-card-icon svg { width: 18px; height: 18px; }
+  .material-card-info h4 { font-size: 0.85rem; }
+  .material-card-info p { font-size: 0.72rem; }
+  .materials-grid { gap: 16px; }
+  .materials-group { border-radius: 10px; }
+  .materials-group-body { padding: 4px; }
+
+  .courses-view-toggle { display: flex; margin-bottom: 12px; }
+}
+
+@media (max-width: 480px) {
+  .courses-view-toggle { display: flex; gap: 3px; padding: 3px; margin-bottom: 10px; }
+  .view-tab { padding: 8px 10px; font-size: 0.78rem; gap: 4px; }
+  .view-tab i, .view-tab svg { width: 14px; height: 14px; }
+
+  .materials-group-header { padding: 10px 12px; font-size: 0.82rem; gap: 8px; }
+  .material-card { padding: 8px 10px; gap: 8px; }
+  .material-card-icon { width: 32px; height: 32px; border-radius: 8px; }
+  .material-card-icon i, .material-card-icon svg { width: 16px; height: 16px; }
+  .material-card-info h4 { font-size: 0.82rem; }
+  .material-card-info p { font-size: 0.68rem; }
+  .materials-group-body { padding: 2px; }
 }

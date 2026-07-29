@@ -1,3 +1,19 @@
 /* ========== NEWS PAGE STYLES ========== */
 
-/* News styles are defined in style.css */
+@media (max-width: 768px) {
+  .news-grid { grid-template-columns: 1fr; gap: 14px; }
+  .news-card .news-img { height: 140px; }
+  .news-card .news-content { padding: 14px; }
+  .news-card .news-content h3 { font-size: 0.95rem; }
+  .news-card .news-content p { font-size: 0.82rem; margin-bottom: 10px; }
+  .news-card .news-meta { font-size: 0.7rem; gap: 10px; }
+}
+
+@media (max-width: 480px) {
+  .news-grid { gap: 10px; }
+  .news-card .news-img { height: 110px; font-size: 2rem; }
+  .news-card .news-content { padding: 12px; }
+  .news-card .news-content h3 { font-size: 0.88rem; margin-bottom: 4px; }
+  .news-card .news-content p { font-size: 0.78rem; }
+  .news-card .news-meta { font-size: 0.65rem; gap: 8px; flex-wrap: wrap; }
+}

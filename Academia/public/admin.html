@@ -31,7 +31,6 @@
           <div class="card">
             <div class="card-header">
               <h2>All Users</h2>
-              <button class="btn btn-primary btn-sm" onclick="showModal('add-user-modal')">+ Add User</button>
             </div>
             <div class="card-body">
               <div class="table-wrapper">
@@ -140,6 +139,10 @@
           </div>
         </div>
       </div>
+
+      <button class="fab" onclick="showModal('add-user-modal')" id="fab-add-user" title="Add User">
+        <i data-lucide="plus"></i>
+      </button>
     </main>
   </div>
 
@@ -160,22 +163,10 @@
               <label>Role</label>
               <select id="au-role" onchange="toggleMatricField()"><option value="student">Student</option><option value="lecturer">Lecturer</option><option value="school_admin">School Admin</option></select>
             </div>
-            <div class="form-group">
-              <label>School</label>
-              <select id="au-school">
-                <option>University for Development Studies</option>
-                <option>University of Education, Winneba</option>
-                <option>Ghana Institute of Management and Public Administration</option>
-                <option>University of Mines and Technology</option>
-                <option>University of Health and Allied Sciences</option>
-                <option>University of Energy and Natural Resources</option>
-                <option>University of Ghana</option>
-                <option>Ghana Communication Technology University</option>
-                <option>Kwame Nkrumah University of Science and Technology</option>
-                <option>University of Cape Coast</option>
-                <option>University of Professional Studies, Accra</option>
-                <option>Central University</option>
-              </select>
+            <div class="form-group" id="au-school-wrap">
+              <label id="au-school-label">School</label>
+              <select id="au-school"></select>
+              <small id="au-school-hint" style="display:none;color:var(--text-secondary);font-size:0.8rem;margin-top:4px"></small>
             </div>
           </div>
           <div class="form-row">

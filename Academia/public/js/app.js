@@ -1,5 +1,20 @@
 const API_BASE = '';
 
+const ALL_SCHOOLS = [
+  'University for Development Studies',
+  'University of Education, Winneba',
+  'Ghana Institute of Management and Public Administration',
+  'University of Mines and Technology',
+  'University of Health and Allied Sciences',
+  'University of Energy and Natural Resources',
+  'University of Ghana',
+  'Ghana Communication Technology University',
+  'Kwame Nkrumah University of Science and Technology',
+  'University of Cape Coast',
+  'University of Professional Studies, Accra',
+  'Central University'
+];
+
 const SCHOOL_LOGOS = {
   'University for Development Studies': '/images/schools/uds.png',
   'University of Education, Winneba': '/images/schools/uew.png',
@@ -293,27 +308,6 @@ function openChangePasswordModal(forceReset = false, activePage) {
         <div id="change-password-message" class="success-msg" style="display:${forceReset ? 'block' : 'none'}">${forceReset ? 'Your account is still using the default password. Update it now to continue securely.' : ''}</div>
         <div id="change-password-error" class="error-msg" style="display:none"></div>
 
-        <div style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border-light)">
-          <label style="display:block;margin-bottom:6px;font-weight:600;font-size:0.82rem;color:var(--text-secondary)">Your School</label>
-          <div style="display:flex;gap:8px;align-items:center">
-            <select id="cp-school" style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--bg);color:var(--text);transition:var(--transition)">
-              <option value="University for Development Studies">University for Development Studies</option>
-              <option value="University of Education, Winneba">University of Education, Winneba</option>
-              <option value="Ghana Institute of Management and Public Administration">Ghana Institute of Management and Public Administration</option>
-              <option value="University of Mines and Technology">University of Mines and Technology</option>
-              <option value="University of Health and Allied Sciences">University of Health and Allied Sciences</option>
-              <option value="University of Energy and Natural Resources">University of Energy and Natural Resources</option>
-              <option value="University of Ghana">University of Ghana</option>
-              <option value="Ghana Communication Technology University">Ghana Communication Technology University</option>
-              <option value="Kwame Nkrumah University of Science and Technology">Kwame Nkrumah University of Science and Technology</option>
-              <option value="University of Cape Coast">University of Cape Coast</option>
-              <option value="University of Professional Studies, Accra">University of Professional Studies, Accra</option>
-              <option value="Central University">Central University</option>
-            </select>
-            <button type="button" class="btn btn-primary btn-sm" id="cp-school-save" style="white-space:nowrap">Save</button>
-          </div>
-        </div>
-
         <div class="form-group">
           <label for="cp-current-password">Current Password</label>
           <input id="cp-current-password" type="password" placeholder="Enter your current password" required>
@@ -334,50 +328,21 @@ function openChangePasswordModal(forceReset = false, activePage) {
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
         <button type="button" class="btn btn-primary" id="change-password-submit">Update Password</button>
-        <button type="button" class="btn btn-outline" id="mfa-setup-button" style="display:none;">Enable MFA</button>
+        <button type="button" class="btn btn-outline" id="mfa-skip-button" style="display:none;" onclick="closeChangePasswordModal()">Skip</button>
         <button type="button" class="btn btn-primary" id="mfa-verify-button" style="display:none;">Verify MFA</button>
       </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
-  const mfaSetupButton = document.getElementById('mfa-setup-button');
+  const mfaSkipButton = document.getElementById('mfa-skip-button');
   const mfaVerifyButton = document.getElementById('mfa-verify-button');
   const cpMfaWrap = document.getElementById('cp-mfa-wrap');
   const cpMfaOtp = document.getElementById('cp-mfa-otp');
   let pendingMfaChallengeToken = null;
 
-  const user = getUser();
-  const schoolSelect = document.getElementById('cp-school');
-  const schoolSection = schoolSelect ? schoolSelect.closest('[style*="margin-bottom"]') || schoolSelect.parentElement.parentElement.parentElement : null;
-  if (user && user.role !== 'admin') {
-    if (schoolSection) schoolSection.style.display = 'none';
-  } else if (user && user.school) {
-    schoolSelect.value = user.school;
-  }
-
   const messageBox = document.getElementById('change-password-message');
   const errorBox = document.getElementById('change-password-error');
-
-  document.getElementById('cp-school-save').addEventListener('click', async () => {
-    const selected = schoolSelect.value;
-    const result = await apiPost('/api/auth/update-school', { school: selected });
-    if (result?.error) {
-      errorBox.textContent = result.error;
-      errorBox.style.display = 'block';
-      messageBox.style.display = 'none';
-      return;
-    }
-    const storedUser = getUser();
-    if (storedUser) {
-      storedUser.school = selected;
-      localStorage.setItem('user', JSON.stringify(storedUser));
-    }
-    messageBox.textContent = 'School updated successfully.';
-    messageBox.style.display = 'block';
-    errorBox.style.display = 'none';
-    renderSidebar(activePage || 'dashboard');
-  });
 
   document.getElementById('change-password-submit').addEventListener('click', async () => {
     const currentPassword = document.getElementById('cp-current-password').value;
@@ -417,22 +382,17 @@ function openChangePasswordModal(forceReset = false, activePage) {
       localStorage.setItem('user', JSON.stringify(storedUser));
     }
 
-    mfaSetupButton.style.display = 'inline-flex';
-  });
-
-  mfaSetupButton.addEventListener('click', async () => {
-    const result = await apiPost('/api/auth/request-mfa-setup', {});
-    if (result?.error) {
-      errorBox.textContent = result.error;
-      errorBox.style.display = 'block';
-      messageBox.style.display = 'none';
+    const mfaResult = await apiPost('/api/auth/request-mfa-setup', {});
+    if (mfaResult?.error) {
+      mfaSkipButton.style.display = 'inline-flex';
       return;
     }
 
-    pendingMfaChallengeToken = result?.challengeToken || null;
+    pendingMfaChallengeToken = mfaResult?.challengeToken || null;
     cpMfaWrap.style.display = 'block';
     mfaVerifyButton.style.display = 'inline-flex';
-    messageBox.textContent = result?.message || 'A verification code has been sent to your email. In preview mode, the code will also be printed in the server console.';
+    mfaSkipButton.style.display = 'inline-flex';
+    messageBox.textContent = 'A verification code has been sent to your email' + (window.location.hostname === 'localhost' ? '. Check the server console for the code' : '') + '. Enter it below to enable MFA, or skip to stay with smooth login.';
     messageBox.style.display = 'block';
     errorBox.style.display = 'none';
   });

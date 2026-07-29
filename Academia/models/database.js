@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const pool = new Pool({
   connectionString: (process.env.DATABASE_URL || '').trim() || undefined,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('sslmode=disable') ? { rejectUnauthorized: false } : false,
   max: 5,
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 10000
@@ -250,15 +250,19 @@ async function initDatabase() {
   `);
 
   const existingAdmin = await db.prepare('SELECT id FROM users WHERE role = $1').get('admin');
-  if (!existingAdmin) {
+  if (existingAdmin && process.env.DEFAULT_ADMIN_PASSWORD) {
+    const hashedPassword = bcrypt.hashSync(process.env.DEFAULT_ADMIN_PASSWORD, 10);
+    await db.prepare('UPDATE users SET password = $1 WHERE id = $2').run(hashedPassword, existingAdmin.id);
+    console.log('Admin password reset to DEFAULT_ADMIN_PASSWORD.');
+  } else if (!existingAdmin) {
     const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD || ('Admin-' + crypto.randomBytes(8).toString('hex'));
-    const hashedPassword = bcrypt.hashSync(defaultAdminPassword, 12);
+    const hashedPassword = bcrypt.hashSync(defaultAdminPassword, 10);
     await db.prepare('INSERT INTO users (full_name, email, password, role, school, department) VALUES ($1, $2, $3, $4, $5, $6)')
       .run('System Admin', 'admin@academia.edu', hashedPassword, 'admin', 'All', 'Administration');
     console.log('Default admin created.');
   }
 
-  try { await pool.query("UPDATE users SET mfa_enabled = 0 WHERE mfa_enabled IS NULL OR mfa_enabled = 1"); } catch(e) {}
+  try { await pool.query("UPDATE users SET mfa_enabled = 0 WHERE mfa_enabled IS NULL"); } catch(e) {}
   try { await pool.query("UPDATE users SET identity_code = NULL WHERE identity_code = ''"); } catch(e) {}
 
   try {

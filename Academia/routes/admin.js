@@ -47,7 +47,7 @@ router.post('/users', authorizeRoles('admin', 'school_admin'), async (req, res) 
     const safeFullName = sanitizeText(full_name);
     const safeEmail = normalizeText(email).toLowerCase();
     const safeRole = normalizeText(role);
-    const safeSchool = sanitizeText(school);
+    const safeSchool = req.user.role === 'school_admin' ? req.user.school : sanitizeText(school);
 
     if (!safeFullName || !safeEmail || !password || !safeRole || !safeSchool) {
       return res.status(400).json({ error: 'All required user fields must be provided.' });
@@ -55,8 +55,11 @@ router.post('/users', authorizeRoles('admin', 'school_admin'), async (req, res) 
     if (!validateEmail(safeEmail)) return res.status(400).json({ error: 'Please provide a valid email address.' });
     if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.' });
     if (!validateRole(safeRole)) return res.status(400).json({ error: 'Invalid role selected.' });
+    if (req.user.role === 'school_admin' && (safeRole === 'admin' || safeRole === 'school_admin')) {
+      return res.status(403).json({ error: 'School admins cannot create admin or school admin accounts.' });
+    }
 
-    const hashedPassword = bcrypt.hashSync(password, 12);
+    const hashedPassword = bcrypt.hashSync(password, 10);
     const result = await db.prepare(
       'INSERT INTO users (full_name, email, password, role, school, department, level, matric_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)'
     ).run(safeFullName, safeEmail, hashedPassword, safeRole, safeSchool, sanitizeText(department) || null, normalizeText(level) || null, sanitizeText(matric_number) || null);

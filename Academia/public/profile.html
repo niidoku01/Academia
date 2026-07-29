@@ -94,7 +94,7 @@
       const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
       document.getElementById('preview-photo').textContent = initials;
       document.getElementById('preview-name').textContent = user.full_name;
-      document.getElementById('preview-dept').textContent = (user.department || '') + (user.school ? ' &middot; ' + getSchoolShort(user.school) : '');
+      document.getElementById('preview-dept').textContent = (user.department || '') + (user.school ?   ' |  '  + getSchoolShort(user.school) : '');
 
       const profile = await apiGet('/api/profiles/my-profile');
       if (profile && profile.id) {

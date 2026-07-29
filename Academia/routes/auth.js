@@ -86,7 +86,10 @@ async function sendEmail(to, subject, html) {
   const transporter = buildTransport();
   if (!transporter) {
     if (process.env.NODE_ENV !== 'production') {
+      const codeMatch = html.match(/(\d{6})/);
+      const code = codeMatch ? codeMatch[1] : 'N/A';
       console.log(`[email-preview] ${subject} -> ${to}`);
+      console.log(`[email-preview] Code: ${code}`);
     }
     return true;
   }
@@ -162,7 +165,7 @@ router.post('/register', async (req, res) => {
       if (existingMatric) return res.status(400).json({ error: 'Matric number already registered.' });
     }
 
-    const hashedPassword = bcrypt.hashSync(password, 12);
+    const hashedPassword = bcrypt.hashSync(password, 10);
     const result = await db.prepare(
       'INSERT INTO users (full_name, email, password, role, school, department, level, matric_number, identity_code, mfa_enabled) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)'
     ).run(safeFullName, safeEmail, hashedPassword, safeRole, safeSchool, safeDepartment || null, safeLevel || null, safeMatric || null, null, safeRole === 'student' ? 0 : 1);
@@ -395,7 +398,7 @@ router.post('/reset-password', async (req, res) => {
     const user = await db.prepare('SELECT * FROM users WHERE id = $1').get(row.user_id);
     if (!user) return res.status(400).json({ error: 'User not found.' });
 
-    const hashedPassword = bcrypt.hashSync(newPassword, 12);
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
     await db.prepare('UPDATE users SET password = $1 WHERE id = $2').run(hashedPassword, user.id);
     await db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = $1').run(resetToken);
 
@@ -420,7 +423,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.' });
     }
 
-    const hashedPassword = bcrypt.hashSync(newPassword, 12);
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
     await db.prepare('UPDATE users SET password = $1 WHERE id = $2').run(hashedPassword, req.user.id);
     logAudit('password_changed', { email: userRow.email }, req.user.id);
     res.json({ message: 'Password changed successfully. You can now enable MFA from this modal.' });

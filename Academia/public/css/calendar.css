@@ -1,3 +1,21 @@
 /* ========== CALENDAR PAGE STYLES ========== */
 
-/* Calendar styles are defined in style.css */
+@media (max-width: 768px) {
+  .calendar-nav { gap: 6px; }
+  .calendar-nav h3 { min-width: auto; font-size: 0.95rem; }
+  .calendar-grid { font-size: 0.7rem; gap: 2px; }
+  .cal-header { padding: 6px 2px; font-size: 0.72rem; }
+  .cal-day { min-height: 54px; padding: 3px; border-radius: 6px; }
+  .cal-event { font-size: 0.56rem; padding: 1px 2px; border-radius: 3px; }
+  .cal-day .day-num { font-size: 0.78rem; }
+}
+
+@media (max-width: 480px) {
+  .calendar-nav { gap: 4px; }
+  .calendar-nav h3 { font-size: 0.88rem; }
+  .calendar-grid { font-size: 0.62rem; gap: 1px; }
+  .cal-header { padding: 4px 1px; font-size: 0.65rem; }
+  .cal-day { min-height: 44px; padding: 2px; }
+  .cal-event { font-size: 0.5rem; padding: 1px; white-space: nowrap; }
+  .cal-day .day-num { font-size: 0.7rem; margin-bottom: 2px; }
+}

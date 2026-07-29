@@ -1,6 +1,7 @@
 /* ========== ADMIN PAGE ========== */
 
 if (checkAuth() && checkRole('admin', 'school_admin')) {
+  const user = getUser();
   renderSidebar('admin');
   loadAdminStats();
   loadUsers();
@@ -9,6 +10,31 @@ if (checkAuth() && checkRole('admin', 'school_admin')) {
   loadPortraits();
   loadNewsApproval();
   loadEventsApproval();
+  setupAddUserForm(user);
+}
+
+function setupAddUserForm(user) {
+  const schoolSelect = document.getElementById('au-school');
+  const schoolWrap = document.getElementById('au-school-wrap');
+  const schoolLabel = document.getElementById('au-school-label');
+  const schoolHint = document.getElementById('au-school-hint');
+  const roleSelect = document.getElementById('au-role');
+
+  if (user.role === 'school_admin') {
+    const short = getSchoolShort(user.school);
+    schoolWrap.innerHTML = `
+      <label>School</label>
+      <div style="padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;color:var(--text);display:flex;align-items:center;gap:8px">
+        ${getSchoolLogo(user.school) ? `<img src="${getSchoolLogo(user.school)}" alt="${short}" style="height:20px;width:20px;object-fit:contain">` : ''}
+        <span>${short} - ${user.school}</span>
+      </div>
+      <small style="color:var(--text-secondary);font-size:0.8rem;margin-top:4px;display:block">Users will be added to your school only</small>
+    `;
+    roleSelect.innerHTML = '<option value="student">Student</option><option value="lecturer">Lecturer</option>';
+  } else {
+    schoolSelect.innerHTML = ALL_SCHOOLS.map(s => `<option value="${s}">${getSchoolShort(s)} - ${s}</option>`).join('');
+    roleSelect.innerHTML = '<option value="student">Student</option><option value="lecturer">Lecturer</option><option value="school_admin">School Admin</option>';
+  }
 }
 
 function showAdminTab(tab, clickedElement) {
@@ -23,6 +49,8 @@ function showAdminTab(tab, clickedElement) {
     const el = document.getElementById(t + '-tab');
     if (el) el.style.display = t === tab ? 'block' : 'none';
   });
+  const fab = document.getElementById('fab-add-user');
+  if (fab) fab.style.display = tab === 'users' ? 'flex' : 'none';
 }
 
 async function loadAdminStats() {
@@ -136,18 +164,25 @@ function toggleMatricField() {
 
 async function addUser(e) {
   e.preventDefault();
-  const res = await apiPost('/api/admin/users', {
+  const user = getUser();
+  const body = {
     full_name: document.getElementById('au-name').value,
     email: document.getElementById('au-email').value,
     password: document.getElementById('au-pass').value,
     role: document.getElementById('au-role').value,
-    school: document.getElementById('au-school').value,
     department: document.getElementById('au-dept').value,
     matric_number: document.getElementById('au-matric').value,
-  });
+  };
+  if (user.role !== 'school_admin') {
+    body.school = document.getElementById('au-school').value;
+  }
+  const res = await apiPost('/api/admin/users', body);
   if (res.error) { showToast(res.error, 'error'); return; }
   showToast('User added!', 'success');
   hideModal('add-user-modal');
+  document.getElementById('add-user-modal').querySelector('form').reset();
+  setupAddUserForm(user);
+  if (user.role === 'school_admin') toggleMatricField();
   loadUsers();
   loadAdminStats();
 }
@@ -284,7 +319,7 @@ async function loadPortraits() {
             : `<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;margin-bottom:12px;border:3px solid rgba(255,255,255,0.3)">${l.full_name.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>`
           }
           <h3 style="font-size:1.05rem;margin-bottom:4px">${l.full_name}</h3>
-          <p style="font-size:0.82rem;opacity:0.85">${l.department || ''} ${l.school ? '&middot; ' + getSchoolShort(l.school) : ''}</p>
+          <p style="font-size:0.82rem;opacity:0.85">${l.department || ''}${l.school ? ' ' + getSchoolShort(l.school) : ''}</p>
         </div>
         <div style="padding:16px 20px">
           ${l.specialization ? `<div style="margin-bottom:8px"><strong style="font-size:0.8rem;color:var(--text-secondary)">Specialization</strong><p style="margin:2px 0 0;font-size:0.9rem">${l.specialization}</p></div>` : ''}

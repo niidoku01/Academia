@@ -791,10 +791,16 @@ preloader .preloader-spinner + svg {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-}
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+  @media (max-width: 480px) {
+    .stat-card { padding: 16px; gap: 12px; }
+    .stat-icon { width: 44px; height: 44px; font-size: 1.1rem; }
+    .stat-info h3 { font-size: 1.2rem; }
+    .stat-info p { font-size: 0.75rem; }
+  }
 
 .stat-icon {
   width: 54px;
@@ -1241,6 +1247,41 @@ tr:hover { background: rgba(99,102,241,0.04); }
 .empty-state .icon { font-size: 3rem; margin-bottom: 14px; opacity: 0.4; }
 .empty-state h3 { margin-bottom: 6px; color: var(--text); font-weight: 700; }
 .empty-state p { font-size: 0.88rem; }
+
+/* ========== FLOATING ACTION BUTTON ========== */
+.fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 90;
+  animation: fabPulse 2s ease-in-out infinite;
+}
+.fab:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 28px rgba(99,102,241,0.5);
+  animation: none;
+}
+.fab:active { transform: scale(0.95); }
+.fab i, .fab svg { width: 24px; height: 24px; stroke-width: 2.5; }
+
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(99,102,241,0.4); }
+  50% { box-shadow: 0 4px 24px rgba(99,102,241,0.6); }
+}
+
+.fab-hidden { display: none !important; }
 
 /* ========== RESPONSIVE ========== */
 .mobile-toggle {
@@ -1718,84 +1759,276 @@ tr:hover { background: rgba(99,102,241,0.04); }
   }
 }
 
+/* ========== TABLET (max-width 1024px) ========== */
 @media (max-width: 1024px) {
   .quick-actions { grid-template-columns: repeat(2, 1fr); }
   .stats-grid-5 { grid-template-columns: repeat(3, 1fr); }
   .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .stats-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .level-tabs { overflow-x: auto; flex-wrap: nowrap; }
 }
 
+/* ========== MOBILE LANDSCAPE / SMALL TABLET (max-width 768px) ========== */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
     box-shadow: none;
+    width: 280px;
+    z-index: 200;
   }
   .sidebar.open {
     transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.25);
   }
   .sidebar-footer { position: static; background: white; }
   .sidebar-nav { padding-bottom: 20px; }
+  .sidebar-header .logo-wrap { gap: 8px; }
+  .school-logo { height: 30px; }
   .main-content { margin-left: 0; }
   .mobile-toggle { display: block; }
-  .content-area { padding: 20px 16px; }
-  .top-bar { padding: 14px 16px; }
-  .hero-section { min-height: 260px; }
-  .hero-content { padding: 28px 24px; }
-  .hero-name { font-size: 1.5rem; }
-  .hero-info { gap: 8px; flex-wrap: wrap; }
-  .hero-actions { flex-direction: column; width: 100%; }
-  .hero-actions .btn { width: 100%; text-align: center; }
-  .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .quick-action { padding: 18px 12px; }
-  .quick-action-icon { width: 50px; height: 50px; font-size: 1.3rem; }
-  .stats-grid-5 { grid-template-columns: repeat(2, 1fr); }
-  .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .stats-grid-3 { grid-template-columns: 1fr; }
-  .bottom-grid { grid-template-columns: 1fr !important; }
-  .profile-grid { grid-template-columns: 1fr !important; }
+  .content-area { padding: 16px 14px; }
+  .top-bar { padding: 12px 14px; gap: 8px; }
+  .top-bar h1 { font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .top-bar-actions { gap: 8px; flex-shrink: 0; }
+
+  .hero-section { min-height: 240px; border-radius: var(--radius); margin-bottom: 24px; }
+  .hero-content { padding: 24px 20px; }
+  .hero-name { font-size: 1.4rem; }
+  .hero-greeting { font-size: 0.75rem; letter-spacing: 2px; }
+  .hero-info { gap: 6px; }
+  .hero-info .info-chip { font-size: 0.72rem; padding: 4px 10px; }
+  .hero-actions { flex-direction: column; width: 100%; gap: 8px; }
+  .hero-actions .btn { width: 100%; text-align: center; padding: 11px 20px; }
+
+  .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+  .quick-action { padding: 16px 10px; gap: 10px; }
+  .quick-action-icon { width: 48px; height: 48px; font-size: 1.2rem; border-radius: var(--radius-sm); }
+  .quick-action-label { font-size: 0.8rem; }
+
+  .stats-grid-5 { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+  .stats-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+  .stats-grid-3 { grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
+  .glass-card-stat { padding: 18px; border-radius: var(--radius); }
+  .glass-card-stat .stat-icon-lg { width: 44px; height: 44px; font-size: 1.2rem; margin-bottom: 12px; }
+  .glass-card-stat .stat-number { font-size: 1.6rem; }
+  .glass-card-stat .stat-label { font-size: 0.78rem; }
+
+  .bottom-grid { grid-template-columns: 1fr !important; gap: 16px; margin-bottom: 24px; }
+  .profile-grid { grid-template-columns: 1fr !important; gap: 20px; }
   .auto-grid { grid-template-columns: 1fr; }
-  .course-grid { grid-template-columns: 1fr; }
-  .news-grid { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
-  .filter-bar { flex-direction: column; }
-  .filter-bar select, .filter-bar input { width: 100%; }
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .calendar-grid { grid-template-columns: repeat(7, 1fr); font-size: 0.72rem; }
-  .cal-day { min-height: 60px; padding: 4px; }
-  .cal-event { font-size: 0.6rem; padding: 1px 3px; }
-  .welcome-banner { padding: 24px 20px; }
+  .course-grid { grid-template-columns: 1fr; gap: 14px; }
+  .news-grid { grid-template-columns: 1fr; gap: 14px; }
+  .form-row { grid-template-columns: 1fr; gap: 12px; }
+
+  .filter-bar { flex-direction: column; gap: 8px; }
+  .filter-bar select, .filter-bar input { width: 100%; min-width: 0 !important; }
+  .level-tabs { overflow-x: auto; flex-wrap: nowrap; gap: 6px; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .level-tabs::-webkit-scrollbar { display: none; }
+  .level-tab { padding: 7px 16px; font-size: 0.8rem; flex-shrink: 0; }
+
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+  .table-wrapper table { min-width: 560px; }
+  .table-wrapper::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to left, rgba(241,245,249,0.9), transparent);
+    pointer-events: none;
+    display: block;
+  }
+  th, td { padding: 10px 12px; font-size: 0.8rem; }
+  th { font-size: 0.72rem; letter-spacing: 0.3px; }
+
+  .calendar-grid { font-size: 0.7rem; gap: 2px; }
+  .cal-day { min-height: 56px; padding: 3px; }
+  .cal-event { font-size: 0.58rem; padding: 1px 2px; border-radius: 3px; }
+  .calendar-nav { gap: 8px; }
+  .calendar-nav h3 { min-width: auto; font-size: 0.95rem; }
+
+  .welcome-banner { padding: 20px 16px; }
   .welcome-content { flex-direction: column; align-items: flex-start; }
   .welcome-actions { width: 100%; }
   .welcome-actions .btn { flex: 1; }
-  .card-header { flex-wrap: wrap; gap: 8px; }
-  .card-header h2 { font-size: 1rem; }
-  .modal { margin: 10px; max-height: 95vh; }
+  .welcome-text h2 { font-size: 1.15rem; }
+
+  .card-header { flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
+  .card-header h2 { font-size: 0.95rem; }
+  .card-body { padding: 16px; }
+
+  .modal { margin: 10px; max-height: 90vh; border-radius: var(--radius); }
+  .modal-header { padding: 16px 18px; }
+  .modal-header h2 { font-size: 1.05rem; }
+  .modal-body { padding: 18px; }
+  .modal-footer { padding: 14px 18px; flex-wrap: wrap; gap: 8px; }
+  .modal-footer .btn { flex: 1; min-width: 0; }
+
+  .section-title { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .section-title h2 { font-size: 1rem; }
+  .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  .course-card { padding: 16px; border-top-width: 2px; }
+  .course-card h3 { font-size: 0.92rem; }
+  .course-card .course-meta { font-size: 0.8rem; margin: 8px 0; }
+
+  .news-card .news-img { height: 140px; }
+  .news-card .news-content { padding: 14px; }
+
+  .material-item { padding: 12px 14px; gap: 10px; }
+  .material-icon { width: 38px; height: 38px; font-size: 1rem; }
+
+  .empty-state { padding: 40px 16px; }
+  .empty-state .icon { font-size: 2.5rem; }
+  .empty-state h3 { font-size: 1rem; }
+  .empty-state p { font-size: 0.82rem; }
+
+  .glass-card { border-radius: var(--radius); }
+  .glass-card:hover { transform: none; }
+
+  .toast { top: 12px; right: 12px; left: 12px; font-size: 0.82rem; padding: 12px 16px; }
+
+  .courses-view-toggle { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 14px; }
+  .view-tab { flex: 1; justify-content: center; padding: 10px 12px; font-size: 0.82rem; }
+
+  .login-wrapper { padding: 14px; max-width: 100%; }
+  .login-card { border-radius: 16px; }
+  .card-body { padding: 20px 16px 12px; }
+  .brand h1 { letter-spacing: 2px; font-size: 0.95rem; }
+  .brand-logos img { height: 48px; }
+  .submit-btn { padding: 12px 16px; font-size: 0.92rem; }
 }
 
+/* ========== FAB ========== */
+@media (max-width: 768px) {
+  .fab { bottom: 20px; right: 16px; width: 50px; height: 50px; }
+  .fab i, .fab svg { width: 22px; height: 22px; }
+}
 @media (max-width: 480px) {
-  .hero-section { min-height: 220px; }
+  .fab { bottom: 16px; right: 12px; width: 48px; height: 48px; z-index: 90; }
+  .fab i, .fab svg { width: 20px; height: 20px; }
+}
+
+/* ========== MOBILE PORTRAIT (max-width 480px) ========== */
+@media (max-width: 480px) {
+  .hero-section { min-height: 200px; border-radius: var(--radius-sm); margin-bottom: 20px; }
   .hero-content { padding: 20px 16px; }
-  .hero-name { font-size: 1.25rem; }
-  .hero-greeting { font-size: 0.85rem; }
-  .info-chip { font-size: 0.75rem; padding: 4px 10px; }
-  .stats-grid-5 { grid-template-columns: 1fr; }
-  .stats-grid-4 { grid-template-columns: 1fr; }
-  .stats-grid-3 { grid-template-columns: 1fr; }
-  .quick-actions { grid-template-columns: 1fr; gap: 10px; }
-  .quick-action { padding: 14px 16px; flex-direction: row; justify-content: flex-start; gap: 14px; }
-  .quick-action-icon { width: 44px; height: 44px; font-size: 1.1rem; }
-  .content-area { padding: 16px 12px; }
-  .top-bar { padding: 12px; }
-  .top-bar h1 { font-size: 1.1rem; }
-  .glass-card-stat { padding: 16px; }
-  .stat-number { font-size: 1.5rem; }
-  .stat-label { font-size: 0.75rem; }
-  .filter-bar { gap: 8px; }
-  .section-title { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .course-card { padding: 16px; }
-  .course-actions { flex-direction: column; }
+  .hero-name { font-size: 1.2rem; margin-bottom: 8px; }
+  .hero-greeting { font-size: 0.7rem; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .hero-info { gap: 5px; }
+  .hero-info .info-chip { font-size: 0.68rem; padding: 3px 8px; }
+  .hero-actions .btn { padding: 10px 16px; font-size: 0.88rem; }
+
+  .stats-grid-5 { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stats-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stats-grid-3 { grid-template-columns: 1fr; gap: 8px; }
+  .glass-card-stat { padding: 14px; }
+  .glass-card-stat .stat-icon-lg { width: 40px; height: 40px; font-size: 1.1rem; margin-bottom: 10px; border-radius: var(--radius-sm); }
+  .glass-card-stat .stat-number { font-size: 1.4rem; }
+  .glass-card-stat .stat-label { font-size: 0.72rem; }
+
+  .quick-actions { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .quick-action { padding: 14px 8px; flex-direction: column; gap: 8px; }
+  .quick-action-icon { width: 42px; height: 42px; font-size: 1rem; }
+  .quick-action-label { font-size: 0.72rem; }
+
+  .content-area { padding: 12px 10px; }
+  .top-bar { padding: 10px; }
+  .top-bar h1 { font-size: 1rem; }
+
+  .btn { padding: 9px 16px; font-size: 0.85rem; }
+  .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+  .filter-bar { gap: 6px; }
+  .filter-bar select, .filter-bar input { padding: 9px 12px; font-size: 0.85rem; }
+
+  .course-card { padding: 14px; }
+  .course-card h3 { font-size: 0.88rem; }
+  .course-card .course-code { font-size: 0.78rem; }
+  .course-card .course-meta { font-size: 0.76rem; margin: 6px 0; }
+  .course-actions { flex-direction: column; gap: 6px; }
   .course-actions .btn { width: 100%; }
-  .courses-view-toggle { flex-direction: row; }
-  .view-tab { flex: 1; justify-content: center; padding: 10px 12px; }
+
+  .news-card .news-img { height: 120px; }
+  .news-card .news-content h3 { font-size: 0.92rem; }
+  .news-card .news-content p { font-size: 0.8rem; }
+
+  .material-item { padding: 10px 12px; gap: 8px; }
+  .material-info h4 { font-size: 0.85rem; }
+  .material-info p { font-size: 0.72rem; }
+
+  .calendar-grid { font-size: 0.65rem; gap: 1px; }
+  .cal-day { min-height: 48px; padding: 2px; }
+  .cal-event { font-size: 0.52rem; padding: 1px; }
+
+  .badge { padding: 3px 8px; font-size: 0.68rem; }
+
+  .section-title h2 { font-size: 0.92rem; }
+
+  .table-wrapper table { min-width: 480px; }
+  th, td { padding: 8px 10px; font-size: 0.75rem; }
+  th { font-size: 0.68rem; }
+
+  .modal { margin: 6px; max-height: 92vh; border-radius: 14px; }
+  .modal-header { padding: 14px 16px; }
+  .modal-header h2 { font-size: 0.98rem; }
+  .modal-body { padding: 14px 16px; }
+  .modal-footer { padding: 12px 16px; }
+  .form-group label { font-size: 0.78rem; margin-bottom: 5px; }
+  .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; font-size: 0.88rem; border-radius: 10px; }
+
+  .profile-grid { gap: 16px; }
+
+  .login-wrapper { padding: 10px; }
+  .brand { margin-bottom: 20px; }
+  .brand-logos img { height: 42px; }
+  .brand-logos { gap: 10px; }
+  .brand h1 { font-size: 0.88rem; letter-spacing: 1.5px; }
+  .portal-badge { font-size: 0.72rem; padding: 6px 10px; }
+  .input-group label { font-size: 0.82rem; }
+  .input-wrap input { padding: 12px 40px 12px 12px; font-size: 0.9rem; }
+  .submit-btn { padding: 11px 14px; font-size: 0.88rem; }
+  .login-note { padding: 10px 12px; font-size: 0.8rem; margin-top: 10px; }
+  .card-footer { padding: 10px 14px; font-size: 0.8rem; }
+
+  .empty-state { padding: 30px 12px; }
+  .empty-state .icon { font-size: 2rem; }
+  .empty-state h3 { font-size: 0.92rem; }
+}
+
+/* ========== SMALL MOBILE (max-width 360px) ========== */
+@media (max-width: 360px) {
+  .content-area { padding: 10px 8px; }
+  .top-bar { padding: 8px 8px; }
+  .top-bar h1 { font-size: 0.9rem; }
+  .top-bar-actions { gap: 4px; }
+  .top-bar-actions .btn { padding: 5px 8px; font-size: 0.75rem; }
+
+  .hero-section { min-height: 180px; margin-bottom: 16px; }
+  .hero-content { padding: 16px 12px; }
+  .hero-name { font-size: 1.1rem; }
+  .hero-info .info-chip { font-size: 0.62rem; padding: 2px 7px; }
+
+  .quick-actions { grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+  .quick-action { padding: 12px 6px; }
+  .quick-action-icon { width: 38px; height: 38px; font-size: 0.9rem; }
+  .quick-action-label { font-size: 0.68rem; }
+
+  .stats-grid-5, .stats-grid-4 { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stats-grid-3 { grid-template-columns: 1fr; }
+  .glass-card-stat { padding: 12px; }
+  .glass-card-stat .stat-icon-lg { width: 36px; height: 36px; font-size: 1rem; margin-bottom: 8px; }
+  .glass-card-stat .stat-number { font-size: 1.3rem; }
+  .glass-card-stat .stat-label { font-size: 0.68rem; }
+
+  .level-tabs { gap: 4px; }
+  .level-tab { padding: 6px 12px; font-size: 0.75rem; }
+
+  .course-card { padding: 12px; }
+  .material-item { padding: 8px 10px; }
+
+  .glass-card-stat .stat-number { font-size: 1.2rem; }
+  .filter-bar { gap: 4px; }
+  .filter-bar select, .filter-bar input { padding: 8px 10px; font-size: 0.82rem; }
 }
