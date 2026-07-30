@@ -175,6 +175,30 @@ async function apiPut(url, body) {
   } catch { showToast('Network error. Please try again.', 'error'); return { error: 'Network error' }; }
 }
 
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5)';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:400px;text-align:center">
+        <div class="modal-header"><h2>Confirm</h2></div>
+        <div class="modal-body" style="padding:24px">
+          <p style="margin-bottom:20px;color:var(--text-secondary);line-height:1.5">${message}</p>
+          <div style="display:flex;gap:10px;justify-content:center">
+            <button class="btn btn-outline" id="confirm-cancel-btn">Cancel</button>
+            <button class="btn btn-danger" id="confirm-ok-btn">Confirm</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    lucide.createIcons();
+    document.getElementById('confirm-cancel-btn').addEventListener('click', () => { overlay.remove(); resolve(false); });
+    document.getElementById('confirm-ok-btn').addEventListener('click', () => { overlay.remove(); resolve(true); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+  });
+}
+
 function showToast(message, type = 'info') {
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -251,12 +275,11 @@ function renderSidebar(activePage) {
     <div class="nav-section">Main</div>
     <a href="/dashboard" class="nav-item ${activePage==='dashboard'?'active':''}"><i data-lucide="layout-dashboard"></i>Dashboard</a>
     <a href="/admin" class="nav-item ${activePage==='admin'?'active':''}"><i data-lucide="settings"></i>Admin Panel</a>
-    <a href="/courses" class="nav-item ${activePage==='courses'?'active':''}"><i data-lucide="book-open"></i>All Courses</a>
     <a href="/calendar" class="nav-item ${activePage==='calendar'?'active':''}"><i data-lucide="calendar"></i>Calendar</a>
     <a href="/news" class="nav-item ${activePage==='news'?'active':''}"><i data-lucide="megaphone"></i>News</a>
     <a href="/admin-profile" class="nav-item ${activePage==='admin-profile'?'active':''}"><i data-lucide="shield-check"></i>My Portrait</a>
     <div class="nav-section">People</div>
-    <a href="/lecturers" class="nav-item ${activePage==='lecturers'?'active':''}"><i data-lucide="users"></i>Lecturer Portraits</a>
+    <a href="/lecturers" class="nav-item ${activePage==='lecturers'?'active':''}"><i data-lucide="users"></i>Staff Database</a>
   `;
 
   let nav = (user.role === 'admin' || user.role === 'school_admin') ? adminNav : user.role === 'lecturer' ? lecturerNav : studentNav;
@@ -489,8 +512,9 @@ document.addEventListener('click', (e) => {
   }
 });
 
-/* ========== IDLE SESSION TIMEOUT ========== */
+/* ========== SESSION TIMEOUT ========== */
 (function() {
+  const TOKEN_REFRESH_INTERVAL = 60 * 1000;
   const IDLE_WARNING_MS = 14 * 60 * 1000;
   const IDLE_LOGOUT_MS = 15 * 60 * 1000;
   const COUNTDOWN_SECONDS = 60;
@@ -500,7 +524,42 @@ document.addEventListener('click', (e) => {
   let countdownInterval = null;
   let countdownRemaining = COUNTDOWN_SECONDS;
 
+  function getTokenExpiry() {
+    const token = getToken();
+    if (!token) return 0;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp ? payload.exp * 1000 : 0;
+    } catch { return 0; }
+  }
+
+  function isTokenExpired() {
+    const exp = getTokenExpiry();
+    return exp > 0 && Date.now() >= exp;
+  }
+
+  function checkTokenExpiry() {
+    if (isTokenExpired()) {
+      performLogout('Your session has expired. Please sign in again.');
+      return true;
+    }
+    return false;
+  }
+
+  function performLogout(message) {
+    clearInterval(countdownInterval);
+    clearTimeout(idleTimer);
+    clearTimeout(logoutTimer);
+    removeIdleModal();
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    localStorage.clear();
+    sessionStorage.clear();
+    if (message) sessionStorage.setItem('session_msg', message);
+    window.location.href = '/';
+  }
+
   function resetIdleTimer() {
+    if (checkTokenExpiry()) return;
     clearTimeout(idleTimer);
     clearTimeout(logoutTimer);
     clearInterval(countdownInterval);
@@ -509,11 +568,12 @@ document.addEventListener('click', (e) => {
   }
 
   function showIdleWarning() {
-    if (!getToken()) return;
+    if (!getToken() || checkTokenExpiry()) return;
     countdownRemaining = COUNTDOWN_SECONDS;
     const overlay = document.createElement('div');
     overlay.id = 'idle-timeout-modal';
     overlay.className = 'modal-overlay active';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5)';
     overlay.innerHTML = `
       <div class="modal" style="max-width:380px;text-align:center">
         <div class="modal-header"><h2>Session Expiring</h2></div>
@@ -534,21 +594,11 @@ document.addEventListener('click', (e) => {
       if (el) el.textContent = countdownRemaining + 's';
       if (countdownRemaining <= 0) {
         clearInterval(countdownInterval);
-        performIdleLogout();
+        performLogout('Session expired due to inactivity.');
       }
     }, 1000);
 
-    logoutTimer = setTimeout(performIdleLogout, IDLE_LOGOUT_MS);
-  }
-
-  function performIdleLogout() {
-    clearInterval(countdownInterval);
-    clearTimeout(idleTimer);
-    clearTimeout(logoutTimer);
-    removeIdleModal();
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = '/';
+    logoutTimer = setTimeout(() => performLogout('Session expired due to inactivity.'), IDLE_LOGOUT_MS);
   }
 
   function removeIdleModal() {
@@ -556,7 +606,26 @@ document.addEventListener('click', (e) => {
     if (modal) modal.remove();
   }
 
-  const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
-  events.forEach(evt => document.addEventListener(evt, resetIdleTimer, { passive: true }));
-  resetIdleTimer();
+  function showSessionExpiredMessage() {
+    const msg = sessionStorage.getItem('session_msg');
+    if (msg) {
+      sessionStorage.removeItem('session_msg');
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.className = 'toast warning show';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.remove('show'), 5000);
+    }
+  }
+
+  if (getToken()) {
+    if (checkTokenExpiry()) return;
+    setInterval(checkTokenExpiry, TOKEN_REFRESH_INTERVAL);
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(evt => document.addEventListener(evt, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+  }
+
+  showSessionExpiredMessage();
 })();

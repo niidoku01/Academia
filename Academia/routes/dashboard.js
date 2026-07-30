@@ -124,32 +124,24 @@ router.get('/', async (req, res) => {
       stats.pending_grading = Number(pendingSubmissions.rows[0].count);
 
     } else if (role === 'school_admin') {
-      const [s1, s2, s3, s4, s5, s6] = await Promise.all([
+      const [s1, s2, s5, s6] = await Promise.all([
         client.query("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND school = $1", [school]),
         client.query("SELECT COUNT(*) as count FROM users WHERE role = 'lecturer' AND school = $1", [school]),
-        client.query("SELECT COUNT(*) as count FROM courses WHERE school = $1", [school]),
-        client.query("SELECT COUNT(*) as count FROM materials m JOIN courses c ON c.id = m.course_id WHERE c.school = $1", [school]),
         client.query("SELECT COUNT(*) as count FROM news WHERE school = $1 AND status = 'pending'", [school]),
         client.query("SELECT COUNT(*) as count FROM calendar_events WHERE school = $1 AND status = 'pending'", [school])
       ]);
       stats.total_students = Number(s1.rows[0].count);
       stats.total_lecturers = Number(s2.rows[0].count);
-      stats.total_courses = Number(s3.rows[0].count);
-      stats.total_materials = Number(s4.rows[0].count);
       stats.pending_news = Number(s5.rows[0].count);
       stats.pending_events = Number(s6.rows[0].count);
 
     } else {
-      const [s1, s2, s3, s4] = await Promise.all([
+      const [s1, s2] = await Promise.all([
         client.query("SELECT COUNT(*) as count FROM users WHERE role = 'student'"),
-        client.query("SELECT COUNT(*) as count FROM users WHERE role = 'lecturer'"),
-        client.query('SELECT COUNT(*) as count FROM courses'),
-        client.query('SELECT COUNT(*) as count FROM materials')
+        client.query("SELECT COUNT(*) as count FROM users WHERE role = 'lecturer'")
       ]);
       stats.total_students = Number(s1.rows[0].count);
       stats.total_lecturers = Number(s2.rows[0].count);
-      stats.total_courses = Number(s3.rows[0].count);
-      stats.total_materials = Number(s4.rows[0].count);
     }
 
     const schoolParam = school === 'All' ? null : school;

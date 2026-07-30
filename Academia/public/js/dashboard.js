@@ -345,7 +345,7 @@ function renderAdminDashboard(data, user) {
         </div>
         <div class="hero-actions">
           <a href="/admin" class="btn btn-hero">Admin Panel</a>
-          <a href="/lecturers" class="btn btn-hero-outline">Lecturer Portraits</a>
+          <a href="/lecturers" class="btn btn-hero-outline">Staff Database</a>
         </div>
       </div>
     </div>
@@ -355,21 +355,17 @@ function renderAdminDashboard(data, user) {
         <div class="quick-action-icon" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);color:var(--info)"><i data-lucide="settings"></i></div>
         <span class="quick-action-label">Admin Panel</span>
       </a>
-      <a href="/courses" class="quick-action animate-fade-in-up animate-delay-2">
-        <div class="quick-action-icon" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);color:var(--accent)"><i data-lucide="book-open"></i></div>
-        <span class="quick-action-label">All Courses</span>
-      </a>
-      <a href="/lecturers" class="quick-action animate-fade-in-up animate-delay-3">
+      <a href="/lecturers" class="quick-action animate-fade-in-up animate-delay-2">
         <div class="quick-action-icon" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:var(--success)"><i data-lucide="users"></i></div>
-        <span class="quick-action-label">Lecturers</span>
+        <span class="quick-action-label">Staff</span>
       </a>
-      <a href="/news" class="quick-action animate-fade-in-up animate-delay-4">
+      <a href="/news" class="quick-action animate-fade-in-up animate-delay-3">
         <div class="quick-action-icon" style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);color:#7b1fa2"><i data-lucide="megaphone"></i></div>
         <span class="quick-action-label">News</span>
       </a>
     </div>
 
-    <div class="stats-grid stats-grid-4">
+    <div class="stats-grid stats-grid-2">
       <div class="glass-card-stat blue animate-fade-in-up animate-delay-1">
         <div class="stat-icon-lg" style="background:#e3f2fd;color:var(--info)"><i data-lucide="users"></i></div>
         <div class="stat-number">${s.total_students||0}</div>
@@ -379,16 +375,6 @@ function renderAdminDashboard(data, user) {
         <div class="stat-icon-lg" style="background:#e8f5e9;color:var(--success)"><i data-lucide="briefcase"></i></div>
         <div class="stat-number">${s.total_lecturers||0}</div>
         <div class="stat-label">Lecturers</div>
-      </div>
-      <div class="glass-card-stat orange animate-fade-in-up animate-delay-3">
-        <div class="stat-icon-lg" style="background:#fff3e0;color:var(--accent)"><i data-lucide="book-open"></i></div>
-        <div class="stat-number">${s.total_courses||0}</div>
-        <div class="stat-label">Courses</div>
-      </div>
-      <div class="glass-card-stat purple animate-fade-in-up animate-delay-4">
-        <div class="stat-icon-lg" style="background:#f3e5f5;color:#7b1fa2"><i data-lucide="folder-open"></i></div>
-        <div class="stat-number">${s.total_materials||0}</div>
-        <div class="stat-label">Materials</div>
       </div>
     </div>
 

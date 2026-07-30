@@ -119,7 +119,7 @@ async function enrollCourse(courseId) {
 }
 
 async function unenrollCourse(courseId) {
-  if (!confirm('Are you sure you want to drop this course?')) return;
+  if (!(await showConfirm('Are you sure you want to drop this course? You may lose access to materials and assignments.'))) return;
   const res = await apiPost('/api/courses/unenroll', { course_id: courseId });
   showToast(res.message || res.error, res.error ? 'error' : 'success');
   if (!res.error) loadCourses();

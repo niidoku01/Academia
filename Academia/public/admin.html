@@ -21,7 +21,7 @@
           <div class="level-tab active" onclick="showAdminTab('users', this)">Users</div>
           <div class="level-tab" onclick="showAdminTab('compilation', this)">Courses</div>
           <div class="level-tab" onclick="showAdminTab('programmes', this)">By Programme</div>
-          <div class="level-tab" onclick="showAdminTab('portraits', this)">Lecturer Portraits</div>
+          <div class="level-tab" onclick="showAdminTab('staff', this)">Staff Database</div>
           <div class="level-tab" onclick="showAdminTab('news-approval', this)">News</div>
           <div class="level-tab" onclick="showAdminTab('events-approval', this)">Events</div>
         </div>
@@ -50,7 +50,10 @@
           <div class="card">
             <div class="card-header">
               <h2>All Courses</h2>
-              <div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <select id="comp-school-filter" onchange="loadCompilation()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+                  <option value="">All Schools</option>
+                </select>
                 <select id="comp-status-filter" onchange="loadCompilation()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
                   <option value="">All Courses</option>
                   <option value="draft">Drafts (Pending)</option>
@@ -123,19 +126,35 @@
 
         <!-- Courses By Programme Tab -->
         <div id="programmes-tab" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <h2>Filter by Programme</h2>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <select id="prog-school-filter" onchange="loadProgrammes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+                  <option value="">All Schools</option>
+                </select>
+                <select id="prog-dept-filter" onchange="loadProgrammes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+                  <option value="">All Departments</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="programmes-content"></div>
         </div>
 
-        <!-- Lecturer Portraits Tab -->
-        <div id="portraits-tab" style="display:none">
+        <!-- Staff Database Tab -->
+        <div id="staff-tab" style="display:none">
           <div class="card">
             <div class="card-header">
-              <h2>Lecturer Portraits</h2>
-              <input type="text" id="portrait-search" placeholder="Search lecturers..." oninput="loadPortraits()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;min-width:200px">
+              <h2>Staff Database</h2>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <select id="staff-school-filter" onchange="loadStaffDatabase()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
+                  <option value="">All Schools</option>
+                </select>
+                <input type="text" id="staff-search" placeholder="Search staff..." oninput="loadStaffDatabase()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;min-width:200px">
+              </div>
             </div>
-            <div class="card-body">
-              <div id="portraits-grid" class="auto-grid"></div>
-            </div>
+            <div class="card-body" id="staff-content"></div>
           </div>
         </div>
       </div>

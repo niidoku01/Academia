@@ -32,7 +32,7 @@ router.get('/users', authorizeRoles('admin', 'school_admin'), async (req, res) =
     if (req.user.role === 'school_admin') {
       users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users WHERE school = $1 ORDER BY created_at DESC').all(req.user.school);
     } else {
-      users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users ORDER BY created_at DESC').all();
+      users = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, created_at FROM users ORDER BY school, role, full_name').all();
     }
     res.json(users);
   } catch (err) {
@@ -74,9 +74,12 @@ router.delete('/users/:id', authorizeRoles('admin', 'school_admin'), async (req,
   try {
     const userId = Number(req.params.id);
     if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ error: 'Invalid user id.' });
-    const target = await db.prepare('SELECT role FROM users WHERE id = $1').get(userId);
+    const target = await db.prepare('SELECT role, school FROM users WHERE id = $1').get(userId);
     if (!target) return res.status(404).json({ error: 'User not found.' });
     if (target.role === 'admin') return res.status(400).json({ error: 'Cannot delete admin users.' });
+    if (req.user.role === 'school_admin' && target.school !== req.user.school) {
+      return res.status(403).json({ error: 'You can only delete users in your school.' });
+    }
 
     await db.prepare('DELETE FROM submissions WHERE student_id = $1').run(userId);
     await db.prepare('DELETE FROM enrollments WHERE student_id = $1').run(userId);
@@ -99,13 +102,19 @@ router.delete('/users/:id', authorizeRoles('admin', 'school_admin'), async (req,
 
 router.get('/courses', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
-    const { status, semester, academic_year } = req.query;
+    const { status, semester, academic_year, school } = req.query;
     let query = `SELECT c.*, u.full_name as lecturer_name,
       (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as enrolled_count
       FROM courses c LEFT JOIN users u ON u.id = c.lecturer_id WHERE 1=1`;
     const params = [];
     let idx = 1;
-    if (req.user.role === 'school_admin') { query += ` AND c.school = $${idx++}`; params.push(req.user.school); }
+    if (req.user.role === 'school_admin') {
+      query += ` AND c.school = $${idx++}`;
+      params.push(req.user.school);
+    } else if (school) {
+      query += ` AND c.school = $${idx++}`;
+      params.push(school);
+    }
     if (status) { query += ` AND c.status = $${idx++}`; params.push(status); }
     if (semester) { query += ` AND c.semester = $${idx++}`; params.push(semester); }
     if (academic_year) { query += ` AND c.academic_year = $${idx++}`; params.push(academic_year); }
@@ -124,7 +133,7 @@ router.post('/courses', authorizeRoles('lecturer', 'school_admin'), async (req, 
     const safeTitle = sanitizeText(title);
     const safeDescription = sanitizeText(description);
     const safeLevel = normalizeText(level);
-    const safeSchool = sanitizeText(school);
+    const safeSchool = req.user.role === 'school_admin' ? req.user.school : sanitizeText(school);
     const safeDepartment = sanitizeText(department);
     const safeSemester = normalizeText(semester);
     const safeAcademicYear = normalizeText(academic_year) || '2025/2026';
@@ -152,6 +161,11 @@ router.put('/courses/:id/publish', authorizeRoles('admin', 'school_admin'), asyn
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
+    if (req.user.role === 'school_admin') {
+      const course = await db.prepare('SELECT school FROM courses WHERE id = $1').get(courseId);
+      if (!course) return res.status(404).json({ error: 'Course not found.' });
+      if (course.school !== req.user.school) return res.status(403).json({ error: 'You can only publish courses in your school.' });
+    }
     await db.prepare("UPDATE courses SET status = 'published' WHERE id = $1").run(courseId);
     logAudit('admin_publish_course', { courseId }, req.user.id);
     res.json({ message: 'Course published' });
@@ -164,6 +178,11 @@ router.put('/courses/:id/unpublish', authorizeRoles('admin', 'school_admin'), as
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
+    if (req.user.role === 'school_admin') {
+      const course = await db.prepare('SELECT school FROM courses WHERE id = $1').get(courseId);
+      if (!course) return res.status(404).json({ error: 'Course not found.' });
+      if (course.school !== req.user.school) return res.status(403).json({ error: 'You can only unpublish courses in your school.' });
+    }
     await db.prepare("UPDATE courses SET status = 'draft' WHERE id = $1").run(courseId);
     logAudit('admin_unpublish_course', { courseId }, req.user.id);
     res.json({ message: 'Course unpublished' });
@@ -172,22 +191,39 @@ router.put('/courses/:id/unpublish', authorizeRoles('admin', 'school_admin'), as
   }
 });
 
+function deleteCourseById(courseId, userId, role, userSchool) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (role === 'school_admin') {
+        const course = await db.prepare('SELECT school FROM courses WHERE id = $1').get(courseId);
+        if (!course) return reject(new Error('Course not found'));
+        if (course.school !== userSchool) return reject(new Error('You can only delete courses in your school.'));
+      }
+      await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = $1)').run(courseId);
+      await db.prepare('DELETE FROM assignments WHERE course_id = $1').run(courseId);
+      await db.prepare('DELETE FROM enrollments WHERE course_id = $1').run(courseId);
+      await db.prepare('DELETE FROM materials WHERE course_id = $1').run(courseId);
+      await db.prepare('DELETE FROM midsem_exams WHERE course_id = $1').run(courseId);
+      await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = $1").run(courseId);
+      await db.prepare('DELETE FROM courses WHERE id = $1').run(courseId);
+      logAudit('admin_delete_course', { courseId }, userId);
+      resolve();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 router.put('/courses/:id/delete', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
-
-    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = $1)').run(courseId);
-    await db.prepare('DELETE FROM assignments WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM enrollments WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM materials WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM midsem_exams WHERE course_id = $1').run(courseId);
-    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = $1").run(courseId);
-    await db.prepare('DELETE FROM courses WHERE id = $1').run(courseId);
-
-    logAudit('admin_delete_course', { courseId }, req.user.id);
+    await deleteCourseById(courseId, req.user.id, req.user.role, req.user.school);
     res.json({ message: 'Course deleted' });
   } catch (err) {
+    if (err.message && (err.message.includes('not found') || err.message.includes('only delete'))) {
+      return res.status(403).json({ error: err.message });
+    }
     handleDbError(res, err, 'Unable to delete course');
   }
 });
@@ -196,18 +232,12 @@ router.delete('/courses/:id', authorizeRoles('admin', 'school_admin'), async (re
   try {
     const courseId = Number(req.params.id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course id.' });
-
-    await db.prepare('DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE course_id = $1)').run(courseId);
-    await db.prepare('DELETE FROM assignments WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM enrollments WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM materials WHERE course_id = $1').run(courseId);
-    await db.prepare('DELETE FROM midsem_exams WHERE course_id = $1').run(courseId);
-    await db.prepare("UPDATE calendar_events SET course_id = NULL WHERE course_id = $1").run(courseId);
-    await db.prepare('DELETE FROM courses WHERE id = $1').run(courseId);
-
-    logAudit('admin_delete_course', { courseId }, req.user.id);
+    await deleteCourseById(courseId, req.user.id, req.user.role, req.user.school);
     res.json({ message: 'Course deleted' });
   } catch (err) {
+    if (err.message && (err.message.includes('not found') || err.message.includes('only delete'))) {
+      return res.status(403).json({ error: err.message });
+    }
     handleDbError(res, err, 'Unable to delete course');
   }
 });
@@ -322,22 +352,31 @@ router.get('/stats', authorizeRoles('admin', 'school_admin'), async (req, res) =
 
 router.get('/courses-by-programme', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
+    const { school, department } = req.query;
     let query = `SELECT c.*, u.full_name as lecturer_name,
         (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as enrolled_count
       FROM courses c
-      LEFT JOIN users u ON u.id = c.lecturer_id`;
+      LEFT JOIN users u ON u.id = c.lecturer_id WHERE 1=1`;
     const params = [];
-    if (req.user.role === 'school_admin') { query += ' WHERE c.school = $1'; params.push(req.user.school); }
+    let idx = 1;
+    if (req.user.role === 'school_admin') {
+      query += ` AND c.school = $${idx++}`;
+      params.push(req.user.school);
+    } else if (school) {
+      query += ` AND c.school = $${idx++}`;
+      params.push(school);
+    }
+    if (department) { query += ` AND c.department = $${idx++}`; params.push(department); }
     query += ' ORDER BY c.school, c.department, c.level, c.code';
     const courses = await db.prepare(query).all(...params);
 
     const programmes = {};
     for (const course of courses) {
-      const school = course.school || 'Unassigned';
+      const sch = course.school || 'Unassigned';
       const dept = course.department || 'General';
-      if (!programmes[school]) programmes[school] = {};
-      if (!programmes[school][dept]) programmes[school][dept] = [];
-      programmes[school][dept].push(course);
+      if (!programmes[sch]) programmes[sch] = {};
+      if (!programmes[sch][dept]) programmes[sch][dept] = [];
+      programmes[sch][dept].push(course);
     }
     res.json(programmes);
   } catch (err) {
@@ -347,27 +386,53 @@ router.get('/courses-by-programme', authorizeRoles('admin', 'school_admin'), asy
 
 router.get('/lecturer-portraits', authorizeRoles('admin', 'school_admin'), async (req, res) => {
   try {
-    const schoolFilter = req.user.role === 'school_admin';
-    const schoolParam = req.user.school;
+    const { school, search } = req.query;
+    const params = [];
+    let idx = 1;
 
-    let lectQuery = `SELECT u.id, u.full_name, u.email, u.department, u.school, u.role,
+    let lectWhere = "u.role = 'lecturer'";
+    let adminWhere = "u.role = 'school_admin'";
+
+    if (req.user.role === 'school_admin') {
+      adminWhere = "u.role IN ('admin', 'school_admin')";
+      lectWhere += ` AND u.school = $${idx}`;
+      adminWhere += ` AND (u.school = $${idx} OR u.school = 'All')`;
+      params.push(req.user.school);
+      idx++;
+    } else if (school) {
+      lectWhere += ` AND u.school = $${idx}`;
+      adminWhere += ` AND u.school = $${idx}`;
+      params.push(school);
+      idx++;
+    }
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      lectWhere += ` AND (u.full_name ILIKE $${idx} OR u.email ILIKE $${idx} OR u.department ILIKE $${idx})`;
+      adminWhere += ` AND (u.full_name ILIKE $${idx} OR u.email ILIKE $${idx} OR u.department ILIKE $${idx})`;
+      params.push(searchPattern);
+      idx++;
+    }
+
+    const lectQuery = `SELECT u.id, u.full_name, u.email, u.department, u.school, u.role,
         lp.bio, lp.office_location, lp.phone, lp.office_hours,
         lp.specialization, lp.qualification, lp.photo_path
       FROM users u LEFT JOIN lecturer_profiles lp ON lp.user_id = u.id
-      WHERE u.role = 'lecturer'${schoolFilter ? ' AND u.school = $1' : ''}
+      WHERE ${lectWhere}
       ORDER BY u.school, u.full_name`;
-    const lecturers = schoolFilter ? await db.prepare(lectQuery).all(schoolParam) : await db.prepare(lectQuery).all();
 
-    let adminQuery = `SELECT u.id, u.full_name, u.email, u.department, u.school, u.role,
+    const adminQuery = `SELECT u.id, u.full_name, u.email, u.department, u.school, u.role,
         ap.position, ap.bio, ap.phone, ap.photo_path
       FROM users u LEFT JOIN admin_profiles ap ON ap.user_id = u.id
-      WHERE u.role IN ('admin', 'school_admin')${schoolFilter ? ' AND u.school = $1' : ''}
-      ORDER BY u.full_name`;
-    const admins = schoolFilter ? await db.prepare(adminQuery).all(schoolParam) : await db.prepare(adminQuery).all();
+      WHERE ${adminWhere}
+      ORDER BY u.school, u.full_name`;
+
+    const lecturers = await db.prepare(lectQuery).all(...params);
+    const admins = await db.prepare(adminQuery).all(...params);
 
     res.json({ lecturers, admins });
   } catch (err) {
-    handleDbError(res, err, 'Unable to load portraits');
+    handleDbError(res, err, 'Unable to load staff database');
   }
 });
 

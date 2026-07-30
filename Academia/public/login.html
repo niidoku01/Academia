@@ -137,6 +137,16 @@
     if (passwordToggle) passwordToggle.addEventListener('click', () => showHide('password', passwordToggle));
     if (verifyMfaBtn) verifyMfaBtn.addEventListener('click', verifyMfa);
 
+    (function() {
+      const msg = sessionStorage.getItem('session_msg');
+      if (msg) {
+        sessionStorage.removeItem('session_msg');
+        const box = document.getElementById('login-err');
+        box.querySelector('span').textContent = msg;
+        box.style.display = 'flex';
+      }
+    })();
+
     // Check if there is an active server session before redirecting.
     // A stale localStorage entry (expired cookie) must NOT cause a blank-screen loop.
     (async function checkExistingSession() {
